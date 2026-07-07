@@ -72,6 +72,18 @@ function sortVillaNumbers(values) {
   );
 }
 
+function PublicRegistrationIntro() {
+  return (
+    <section className="panel public-registration-hero">
+      <span className="eyebrow public-registration-kicker">Public Sports Registration</span>
+      <h1>Acqualina Onam 2026</h1>
+      <p className="public-registration-quote">
+        "Onam brings us together, and sport turns that togetherness into celebration."
+      </p>
+    </section>
+  );
+}
+
 export default function PublicRegistrationView() {
   const {
     configured,
@@ -291,159 +303,165 @@ export default function PublicRegistrationView() {
   if (!configured) {
     return (
       <div className="auth-shell auth-shell-centered">
-        <section className="panel auth-panel">
-          <h2>Public Sports Registration</h2>
-          <p>Supabase environment variables are missing, so the public registration page is not available yet.</p>
-        </section>
+        <div className="public-registration-stack">
+          <PublicRegistrationIntro />
+          <section className="panel auth-panel">
+            <h2>Public Sports Registration</h2>
+            <p>Supabase environment variables are missing, so the public registration page is not available yet.</p>
+          </section>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="auth-shell public-registration-shell">
-      <section className="panel public-registration-panel">
-        <SectionTitle
-          title="Public Sports Registration"
-          description="Choose your villa number, player, and submit interest for the events you are eligible to join."
-        />
+      <div className="public-registration-stack">
+        <PublicRegistrationIntro />
 
-        <form className="form-panel" onSubmit={handleSubmit}>
-          <div className="dashboard-grid public-registration-grid">
-            <label>
-              <span>Villa number</span>
-              <select
-                value={villaNumber}
-                onChange={(event) => handleVillaChange(event.target.value)}
-                disabled={loading || submitting}
-              >
-                <option value="">Select villa number</option>
-                {villaOptions.map((option) => (
-                  <option key={option} value={option}>
-                    Villa {option}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <section className="panel public-registration-panel">
+          <SectionTitle
+            title="Public Sports Registration"
+            description="Choose your villa number, player, and submit interest for the events you are eligible to join."
+          />
+
+          <form className="form-panel" onSubmit={handleSubmit}>
+            <div className="dashboard-grid public-registration-grid">
+              <label>
+                <span>Villa number</span>
+                <select
+                  value={villaNumber}
+                  onChange={(event) => handleVillaChange(event.target.value)}
+                  disabled={loading || submitting}
+                >
+                  <option value="">Select villa number</option>
+                  {villaOptions.map((option) => (
+                    <option key={option} value={option}>
+                      Villa {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Player</span>
+                <select
+                  value={playerId}
+                  onChange={(event) => handlePlayerChange(event.target.value)}
+                  disabled={loading || submitting || !villaNumber}
+                >
+                  <option value="">Select player</option>
+                  {villaPlayers.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Category</span>
+                <input
+                  value={selectedPlayer?.category ?? ""}
+                  placeholder="Category will appear here"
+                  readOnly
+                />
+              </label>
+            </div>
 
             <label>
-              <span>Player</span>
-              <select
-                value={playerId}
-                onChange={(event) => handlePlayerChange(event.target.value)}
-                disabled={loading || submitting || !villaNumber}
-              >
-                <option value="">Select player</option>
-                {villaPlayers.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>Category</span>
+              <span>Search eligible events</span>
               <input
-                value={selectedPlayer?.category ?? ""}
-                placeholder="Category will appear here"
-                readOnly
+                value={eventSearch}
+                onChange={(event) => setEventSearch(event.target.value)}
+                placeholder="Search by event, sport type, or category"
+                disabled={!selectedPlayer || submitting}
               />
             </label>
-          </div>
 
-          <label>
-            <span>Search eligible events</span>
-            <input
-              value={eventSearch}
-              onChange={(event) => setEventSearch(event.target.value)}
-              placeholder="Search by event, sport type, or category"
-              disabled={!selectedPlayer || submitting}
-            />
-          </label>
+            <section className="panel public-interest-events-panel">
+              <SectionTitle
+                title="Eligible Sports Events"
+                description={
+                  selectedPlayer
+                    ? `Select one or more events for ${selectedPlayer.name}.`
+                    : "Choose a player first to see eligible events."
+                }
+              />
 
-          <section className="panel public-interest-events-panel">
-            <SectionTitle
-              title="Eligible Sports Events"
-              description={
-                selectedPlayer
-                  ? `Select one or more events for ${selectedPlayer.name}.`
-                  : "Choose a player first to see eligible events."
-              }
-            />
+              {selectedPlayer ? (
+                <div className="assignment-list public-interest-event-list">
+                  {isFallbackEventList ? (
+                    <p className="field-hint">
+                      No exact category match was found, so all available sports events are shown.
+                    </p>
+                  ) : null}
+                  {previousSelectionsLoading ? (
+                    <p className="field-hint">Loading previous selections...</p>
+                  ) : null}
+                  {previousSelectionsError ? (
+                    <p className="error-note">{previousSelectionsError}</p>
+                  ) : null}
+                  {eligibleSportsEvents.map((sportEvent) => {
+                    const selected = selectedSportEventIds.includes(sportEvent.id);
 
-            {selectedPlayer ? (
-              <div className="assignment-list public-interest-event-list">
-                {isFallbackEventList ? (
-                  <p className="field-hint">
-                    No exact category match was found, so all available sports events are shown.
-                  </p>
-                ) : null}
-                {previousSelectionsLoading ? (
-                  <p className="field-hint">Loading previous selections...</p>
-                ) : null}
-                {previousSelectionsError ? (
-                  <p className="error-note">{previousSelectionsError}</p>
-                ) : null}
-                {eligibleSportsEvents.map((sportEvent) => {
-                  const selected = selectedSportEventIds.includes(sportEvent.id);
+                    return (
+                      <label
+                        key={sportEvent.id}
+                        className={selected ? "assignment-row selected" : "assignment-row"}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => handleToggleSportEvent(sportEvent.id)}
+                          disabled={submitting || publicRegistrationLocked}
+                        />
+                        <span>{sportEvent.name}</span>
+                        <small>
+                          {sportEvent.sportType} | {sportEvent.eventCategory} | {sportEvent.playersPerSide} per side
+                        </small>
+                      </label>
+                    );
+                  })}
+                  {eligibleSportsEvents.length === 0 ? (
+                    <p className="empty-note">
+                      {sportsEvents.length === 0
+                        ? "No public sports events are available right now."
+                        : "No eligible sports events found for this player."}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="empty-note">Select a villa number and player to continue.</p>
+              )}
+            </section>
 
-                  return (
-                    <label
-                      key={sportEvent.id}
-                      className={selected ? "assignment-row selected" : "assignment-row"}
-                    >
-                    <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => handleToggleSportEvent(sportEvent.id)}
-                        disabled={submitting || publicRegistrationLocked}
-                      />
-                      <span>{sportEvent.name}</span>
-                      <small>
-                        {sportEvent.sportType} | {sportEvent.eventCategory} | {sportEvent.playersPerSide} per side
-                      </small>
-                    </label>
-                  );
-                })}
-                {eligibleSportsEvents.length === 0 ? (
-                  <p className="empty-note">
-                    {sportsEvents.length === 0
-                      ? "No public sports events are available right now."
-                      : "No eligible sports events found for this player."}
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <p className="empty-note">Select a villa number and player to continue.</p>
-            )}
-          </section>
+            {publicRegistrationLocked ? (
+              <p className="status-note">
+                Public sports registration is currently locked. You can view previous submissions,
+                but new interests cannot be submitted right now.
+              </p>
+            ) : null}
 
-          {publicRegistrationLocked ? (
-            <p className="status-note">
-              Public sports registration is currently locked. You can view previous submissions,
-              but new interests cannot be submitted right now.
-            </p>
-          ) : null}
+            {error ? <p className="error-note">{error}</p> : null}
+            {status ? <p className="status-note">{status}</p> : null}
 
-          {error ? <p className="error-note">{error}</p> : null}
-          {status ? <p className="status-note">{status}</p> : null}
-
-          <div className="form-actions">
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={loading || submitting || !selectedPlayer || publicRegistrationLocked}
-            >
-              {publicRegistrationLocked
-                ? "Registration locked"
-                : submitting
-                  ? "Saving interest..."
-                  : "Submit interest"}
-            </button>
-           
-          </div>
-        </form>
-      </section>
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={loading || submitting || !selectedPlayer || publicRegistrationLocked}
+              >
+                {publicRegistrationLocked
+                  ? "Registration locked"
+                  : submitting
+                    ? "Saving interest..."
+                    : "Submit interest"}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
     </div>
   );
 }

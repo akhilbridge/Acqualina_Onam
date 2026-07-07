@@ -397,8 +397,44 @@ body.onam-cursor-enabled textarea {
   padding-block: 2.2rem;
 }
 
-.public-registration-panel {
+.public-registration-stack {
+  display: grid;
+  gap: 1.2rem;
   width: min(100%, 980px);
+}
+
+.public-registration-hero,
+.public-registration-panel {
+  width: 100%;
+}
+
+.public-registration-hero {
+  overflow: hidden;
+  padding: 1.4rem 1.5rem;
+  background:
+    radial-gradient(circle at top right, rgba(255, 204, 114, 0.34), transparent 28%),
+    linear-gradient(135deg, rgba(255, 247, 225, 0.72), rgba(255, 255, 255, 0.32)),
+    rgba(255, 255, 255, 0.22);
+}
+
+.public-registration-hero h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  line-height: 0.96;
+  color: var(--green);
+}
+
+.public-registration-kicker {
+  margin-bottom: 0.65rem;
+}
+
+.public-registration-quote {
+  margin: 0.9rem 0 0;
+  max-width: 42rem;
+  color: rgba(31, 92, 69, 0.82);
+  font-size: 1.02rem;
+  font-style: italic;
+  line-height: 1.7;
 }
 
 .public-registration-grid {
