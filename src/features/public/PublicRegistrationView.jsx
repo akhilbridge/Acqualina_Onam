@@ -97,6 +97,7 @@ export default function PublicRegistrationView() {
   const [previousSelectionsLoading, setPreviousSelectionsLoading] = useState(false);
   const [previousSelectionsError, setPreviousSelectionsError] = useState("");
   const deferredEventSearch = useDeferredValue(eventSearch);
+  const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
 
   const teamOptions = useMemo(() => {
     const activeTeamIds = new Set(players.map((player) => player.teamId).filter(Boolean));
@@ -345,7 +346,7 @@ export default function PublicRegistrationView() {
             description="Choose your team, category, player, and submit interest for the events you are eligible to join."
           />
 
-          <form className="form-panel" onSubmit={handleSubmit}>
+          <form className="form-panel public-registration-form" onSubmit={handleSubmit}>
             <div className="dashboard-grid public-registration-grid">
               <label>
                 <span>Team</span>
@@ -405,6 +406,23 @@ export default function PublicRegistrationView() {
               </label>
             </div>
 
+            {selectedTeam || selectedCategory || selectedPlayer ? (
+              <div className="public-registration-selection-strip" aria-label="Current selection">
+                {selectedTeam ? (
+                  <span className="public-selection-pill">{selectedTeam.name}</span>
+                ) : null}
+                {selectedCategory ? (
+                  <span className="public-selection-pill">{selectedCategory}</span>
+                ) : null}
+                {selectedPlayer ? (
+                  <span className="public-selection-pill">{selectedPlayer.name}</span>
+                ) : null}
+                {selectedPlayer?.villaNumber ? (
+                  <span className="public-selection-pill">Villa {selectedPlayer.villaNumber}</span>
+                ) : null}
+              </div>
+            ) : null}
+
             <label>
               <span>Search eligible events</span>
               <input
@@ -453,8 +471,10 @@ export default function PublicRegistrationView() {
                           disabled={submitting || publicRegistrationLocked}
                         />
                         <span>{sportEvent.name}</span>
-                        <small>
-                          {sportEvent.sportType} | {sportEvent.eventCategory} | {sportEvent.playersPerSide} per side
+                        <small className="public-interest-event-meta">
+                          <span>{sportEvent.sportType}</span>
+                          <span>{sportEvent.eventCategory}</span>
+                          <span>{sportEvent.playersPerSide} per side</span>
                         </small>
                       </label>
                     );
@@ -482,7 +502,7 @@ export default function PublicRegistrationView() {
             {error ? <p className="error-note">{error}</p> : null}
             {status ? <p className="status-note">{status}</p> : null}
 
-            <div className="form-actions">
+            <div className="form-actions public-registration-actions">
               <button
                 type="submit"
                 className="primary-button"

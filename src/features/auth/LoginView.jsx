@@ -33,6 +33,7 @@ export default function LoginView({ onSignIn, error, configured }) {
             <span>Email</span>
             <input
               type="email"
+              autoComplete="email"
               value={form.email}
               onChange={(event) =>
                 setForm((current) => ({
@@ -48,6 +49,7 @@ export default function LoginView({ onSignIn, error, configured }) {
             <span>Password</span>
             <input
               type="password"
+              autoComplete="current-password"
               value={form.password}
               onChange={(event) =>
                 setForm((current) => ({

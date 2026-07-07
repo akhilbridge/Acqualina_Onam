@@ -394,13 +394,13 @@ body.onam-cursor-enabled textarea {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-block: 2.2rem;
+  padding: clamp(1rem, 3vw, 2.2rem) 1rem 3rem;
 }
 
 .public-registration-stack {
   display: grid;
-  gap: 1.2rem;
-  width: min(100%, 980px);
+  gap: 1.1rem;
+  width: min(100%, 1040px);
 }
 
 .public-registration-hero,
@@ -410,7 +410,7 @@ body.onam-cursor-enabled textarea {
 
 .public-registration-hero {
   overflow: hidden;
-  padding: 1.4rem 1.5rem;
+  padding: clamp(1.2rem, 2.8vw, 1.7rem);
   background:
     radial-gradient(circle at top right, rgba(255, 204, 114, 0.34), transparent 28%),
     linear-gradient(135deg, rgba(255, 247, 225, 0.72), rgba(255, 255, 255, 0.32)),
@@ -438,7 +438,53 @@ body.onam-cursor-enabled textarea {
 }
 
 .public-registration-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 0.95rem;
+}
+
+.public-registration-form {
+  gap: 1rem;
+}
+
+.public-registration-selection-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.public-selection-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.5rem 0.82rem;
+  background: linear-gradient(135deg, rgba(255, 197, 97, 0.28), rgba(255, 255, 255, 0.26));
+  border: 1px solid rgba(212, 145, 42, 0.14);
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.public-registration-actions {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.public-interest-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.public-interest-event-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0.22rem 0.58rem;
+  border-radius: 999px;
+  background: rgba(255, 244, 221, 0.9);
+  color: var(--green);
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .auth-shell-centered .auth-panel {
@@ -1167,8 +1213,28 @@ a.ghost-button,
 }
 
 .public-interest-event-list {
-  max-height: 420px;
+  max-height: min(52vh, 500px);
   overflow-y: auto;
+}
+
+.public-interest-event-list .assignment-row {
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem 0.9rem;
+  align-items: start;
+  padding: 0.95rem 1rem;
+  border-radius: 20px;
+}
+
+.public-interest-event-list .assignment-row input {
+  margin-top: 0.32rem;
+}
+
+.public-interest-event-list .assignment-row span {
+  line-height: 1.35;
+}
+
+.public-interest-event-list .assignment-row small {
+  margin-top: 0.2rem;
 }
 
 .sport-event-management-list {
@@ -1491,6 +1557,14 @@ td {
     rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(24px);
   box-shadow: 0 22px 38px rgba(122, 73, 18, 0.18);
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .mobile-nav-item {
@@ -1503,6 +1577,8 @@ td {
   color: var(--green);
   text-align: center;
   font-weight: 700;
+  white-space: nowrap;
+  scroll-snap-align: start;
 }
 
 .mobile-nav-item.active {
@@ -1561,6 +1637,168 @@ td {
     padding: 1rem;
   }
 
+  .view-stack {
+    gap: 1rem;
+  }
+
+  .panel,
+  .hero-card,
+  .auth-panel,
+  .demo-card,
+  .account-card,
+  .assignment-column,
+  .team-summary,
+  .team-card,
+  .schedule-item,
+  .overview-item,
+  .mobile-context-card {
+    padding: 1rem;
+  }
+
+  .section-title {
+    gap: 0.55rem;
+  }
+
+  .section-title h3 {
+    font-size: 1.55rem;
+    line-height: 1.05;
+  }
+
+  .section-title p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 52px;
+    font-size: 16px;
+  }
+
+  .primary-button,
+  .ghost-button,
+  .danger-button {
+    min-height: 48px;
+  }
+
+  .inline-button,
+  .icon-button {
+    min-height: 0;
+  }
+
+  .public-registration-shell {
+    padding: 0.9rem 0.85rem 1.5rem;
+  }
+
+  .public-registration-stack {
+    gap: 0.9rem;
+  }
+
+  .public-registration-hero {
+    padding: 1.15rem 1rem 1rem;
+    border-radius: 24px;
+  }
+
+  .public-registration-hero h1 {
+    max-width: 11ch;
+    font-size: clamp(1.82rem, 9vw, 2.3rem);
+    line-height: 0.98;
+  }
+
+  .public-registration-kicker {
+    margin-bottom: 0.45rem;
+  }
+
+  .public-registration-quote {
+    margin-top: 0.72rem;
+    font-size: 0.94rem;
+    line-height: 1.55;
+  }
+
+  .public-registration-panel {
+    padding: 1rem;
+    border-radius: 24px;
+  }
+
+  .public-registration-panel .section-title {
+    gap: 0.55rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .public-registration-panel .section-title h3 {
+    font-size: 1.7rem;
+    line-height: 1.02;
+  }
+
+  .public-registration-panel .section-title p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .public-registration-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .public-registration-panel label span {
+    font-size: 0.78rem;
+    letter-spacing: 0.01em;
+  }
+
+  .public-registration-panel input,
+  .public-registration-panel select {
+    min-height: 54px;
+    padding: 0.94rem 1rem;
+    border-radius: 18px;
+    font-size: 1rem;
+  }
+
+  .public-registration-selection-strip {
+    gap: 0.45rem;
+  }
+
+  .public-selection-pill {
+    padding: 0.48rem 0.72rem;
+    font-size: 0.78rem;
+  }
+
+  .public-interest-events-panel {
+    padding: 0.95rem;
+  }
+
+  .public-interest-event-list {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .public-interest-event-list .assignment-row {
+    padding: 0.95rem 0.9rem;
+    gap: 0.45rem 0.78rem;
+  }
+
+  .public-interest-event-list .assignment-row small {
+    gap: 0.36rem;
+  }
+
+  .public-interest-event-meta span {
+    min-height: 1.55rem;
+    padding: 0.18rem 0.48rem;
+    font-size: 0.72rem;
+  }
+
+  .public-registration-actions {
+    margin-top: 0.15rem;
+    padding-top: 0.35rem;
+  }
+
+  .public-registration-actions .primary-button {
+    width: 100%;
+    min-height: 56px;
+    border-radius: 20px;
+  }
+
   .auth-panel + .auth-panel {
     margin-top: 1rem;
   }
@@ -1578,7 +1816,7 @@ td {
   }
 
   .brand-block h1 {
-    font-size: 2.3rem;
+    font-size: clamp(2rem, 9vw, 2.3rem);
   }
 
   .brand-copy {
@@ -1593,7 +1831,7 @@ td {
   }
 
   .main-panel {
-    padding: 1rem 0 6.8rem;
+    padding: 0.95rem 0 7.8rem;
   }
 
   .topbar,
@@ -1624,6 +1862,17 @@ td {
     width: 100%;
   }
 
+  .players-toolbar {
+    display: grid;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .players-filter-field,
+  .search-field {
+    min-width: 0;
+  }
+
   .toolbar {
     justify-content: stretch;
   }
@@ -1642,16 +1891,32 @@ td {
   .game-stack,
   .assignment-list,
   .team-side-list,
-  .mobile-player-list {
-    max-height: min(56vh, 460px);
+  .mobile-player-list,
+  .sport-event-management-list,
+  .compact-overview-list,
+  .public-interest-event-list,
+  .player-roster-table-shell {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .mobile-nav {
     display: flex;
+    justify-content: flex-start;
+    gap: 0.55rem;
+    padding:
+      0.65rem
+      0.7rem
+      calc(0.72rem + env(safe-area-inset-bottom));
   }
 
-  .search-field {
-    min-width: 0;
+  .mobile-nav-item {
+    flex: 0 0 auto;
+    min-width: 92px;
+    padding: 0.76rem 0.8rem;
+    border-radius: 14px;
+    font-size: 0.86rem;
   }
 
   .table-shell {
@@ -1663,7 +1928,7 @@ td {
   }
 
   .player-roster-table-shell {
-    max-height: min(56vh, 460px);
+    max-height: none;
   }
 
   .table-shell table {
@@ -1695,6 +1960,37 @@ td {
 
   .game-card-side {
     justify-items: stretch;
+  }
+
+  .overview-item,
+  .schedule-item {
+    align-items: stretch;
+    gap: 0.7rem;
+  }
+
+  .overview-item .table-actions,
+  .team-card .table-actions,
+  .mobile-player-card .table-actions,
+  .schedule-meta {
+    width: 100%;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .overview-item .table-actions > *,
+  .team-card .table-actions > *,
+  .mobile-player-card .table-actions > *,
+  .schedule-meta > * {
+    width: 100%;
+  }
+
+  .overview-item .table-actions span,
+  .schedule-meta span {
+    width: auto;
+  }
+
+  .assignment-header {
+    gap: 0.65rem;
   }
 
   .form-actions,
