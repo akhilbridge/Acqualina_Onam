@@ -63,15 +63,6 @@ function isEligibleForEvent(playerCategory, eventCategory) {
   return true;
 }
 
-function sortVillaNumbers(values) {
-  return [...values].sort((left, right) =>
-    String(left).localeCompare(String(right), undefined, {
-      numeric: true,
-      sensitivity: "base",
-    }),
-  );
-}
-
 function PublicRegistrationIntro() {
   return (
     <section className="panel public-registration-hero">
@@ -97,7 +88,7 @@ export default function PublicRegistrationView() {
     getPlayerInterestSubmissions,
   } = usePublicInterestRegistration();
   const [teamId, setTeamId] = useState("");
-  const [villaNumber, setVillaNumber] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [selectedSportEventIds, setSelectedSportEventIds] = useState([]);
   const [status, setStatus] = useState("");
@@ -122,20 +113,23 @@ export default function PublicRegistrationView() {
     [players, teamId],
   );
 
-  const villaOptions = useMemo(
-    () => sortVillaNumbers(new Set(teamPlayers.map((player) => player.villaNumber))),
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(new Set(teamPlayers.map((player) => player.category)))
+        .filter(Boolean)
+        .sort((left, right) => left.localeCompare(right)),
     [teamPlayers],
   );
 
-  const villaPlayers = useMemo(
+  const filteredPlayers = useMemo(
     () =>
-      teamPlayers.filter((player) => player.villaNumber === villaNumber).sort((left, right) =>
+      teamPlayers.filter((player) => player.category === selectedCategory).sort((left, right) =>
         left.name.localeCompare(right.name),
       ),
-    [teamPlayers, villaNumber],
+    [selectedCategory, teamPlayers],
   );
 
-  const selectedPlayer = villaPlayers.find((player) => player.id === playerId) ?? null;
+  const selectedPlayer = filteredPlayers.find((player) => player.id === playerId) ?? null;
 
   const matchingSportsEvents = useMemo(() => {
     if (!selectedPlayer) {
@@ -260,15 +254,15 @@ export default function PublicRegistrationView() {
 
   const handleTeamChange = (nextTeamId) => {
     setTeamId(nextTeamId);
-    setVillaNumber("");
+    setSelectedCategory("");
     setPlayerId("");
     setSelectedSportEventIds([]);
     setPreviousSelectionsError("");
     setStatus("");
   };
 
-  const handleVillaChange = (nextVillaNumber) => {
-    setVillaNumber(nextVillaNumber);
+  const handleCategoryChange = (nextCategory) => {
+    setSelectedCategory(nextCategory);
     setPlayerId("");
     setSelectedSportEventIds([]);
     setPreviousSelectionsError("");
@@ -292,8 +286,8 @@ export default function PublicRegistrationView() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!teamId || !villaNumber || !playerId) {
-      setStatus("Choose a team, villa number, and player first.");
+    if (!teamId || !selectedCategory || !playerId || !selectedPlayer?.villaNumber) {
+      setStatus("Choose a team, category, and player first.");
       return;
     }
 
@@ -311,7 +305,7 @@ export default function PublicRegistrationView() {
       setSubmitting(true);
       setStatus("");
       const response = await submitInterest({
-        villaNumber,
+        villaNumber: selectedPlayer.villaNumber,
         playerId,
         sportEventIds: selectedSportEventIds,
       });
@@ -348,7 +342,7 @@ export default function PublicRegistrationView() {
         <section className="panel public-registration-panel">
           <SectionTitle
             title="Public Sports Registration"
-            description="Choose your team, villa number, player, and submit interest for the events you are eligible to join."
+            description="Choose your team, category, player, and submit interest for the events you are eligible to join."
           />
 
           <form className="form-panel" onSubmit={handleSubmit}>
@@ -370,16 +364,16 @@ export default function PublicRegistrationView() {
               </label>
 
               <label>
-                <span>Villa number</span>
+                <span>Category</span>
                 <select
-                  value={villaNumber}
-                  onChange={(event) => handleVillaChange(event.target.value)}
+                  value={selectedCategory}
+                  onChange={(event) => handleCategoryChange(event.target.value)}
                   disabled={loading || submitting || !teamId}
                 >
-                  <option value="">Select villa number</option>
-                  {villaOptions.map((option) => (
+                  <option value="">Select category</option>
+                  {categoryOptions.map((option) => (
                     <option key={option} value={option}>
-                      Villa {option}
+                      {option}
                     </option>
                   ))}
                 </select>
@@ -390,10 +384,10 @@ export default function PublicRegistrationView() {
                 <select
                   value={playerId}
                   onChange={(event) => handlePlayerChange(event.target.value)}
-                  disabled={loading || submitting || !teamId || !villaNumber}
+                  disabled={loading || submitting || !teamId || !selectedCategory}
                 >
                   <option value="">Select player</option>
-                  {villaPlayers.map((player) => (
+                  {filteredPlayers.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.name}
                     </option>
@@ -402,10 +396,10 @@ export default function PublicRegistrationView() {
               </label>
 
               <label>
-                <span>Category</span>
+                <span>Villa number</span>
                 <input
-                  value={selectedPlayer?.category ?? ""}
-                  placeholder="Category will appear here"
+                  value={selectedPlayer?.villaNumber ?? ""}
+                  placeholder="Villa number will appear here"
                   readOnly
                 />
               </label>
@@ -427,7 +421,7 @@ export default function PublicRegistrationView() {
                 description={
                   selectedPlayer
                     ? `Select one or more events for ${selectedPlayer.name}.`
-                    : "Choose a team, villa number, and player first to see eligible events."
+                    : "Choose a team, category, and player first to see eligible events."
                 }
               />
 
@@ -474,7 +468,7 @@ export default function PublicRegistrationView() {
                   ) : null}
                 </div>
               ) : (
-                <p className="empty-note">Select a team, villa number, and player to continue.</p>
+                <p className="empty-note">Select a team, category, and player to continue.</p>
               )}
             </section>
 
