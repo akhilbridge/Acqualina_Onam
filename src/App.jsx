@@ -128,7 +128,11 @@ export default function App() {
   const navItems =
     role === "admin"
       ? NAV_ITEMS
-      : NAV_ITEMS.filter((item) => !["interests", "settings"].includes(item.id));
+      : NAV_ITEMS.filter((item) =>
+          role === "captain"
+            ? item.id !== "settings"
+            : !["interests", "settings"].includes(item.id),
+        );
 
   const handleCreateUser = (user) => createUser(user);
   const handleCreateTeam = (name, captainUserId) => createTeam(name, captainUserId);
@@ -259,12 +263,13 @@ export default function App() {
     );
   }
 
-  if (currentView === "interests" && role === "admin") {
+  if (currentView === "interests" && ["admin", "captain"].includes(role)) {
     content = (
       <InterestsView
         submissions={database.publicInterestSubmissions}
         sportsEvents={database.sportsEvents}
         players={database.players}
+        role={role}
         onUpdateSubmission={handleUpdatePublicInterestSubmission}
         onDeleteSubmission={handleDeletePublicInterestSubmission}
       />

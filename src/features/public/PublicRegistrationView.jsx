@@ -72,14 +72,6 @@ function sortVillaNumbers(values) {
   );
 }
 
-function formatDateTime(value) {
-  if (!value) {
-    return "Unknown time";
-  }
-
-  return new Date(value).toLocaleString();
-}
-
 export default function PublicRegistrationView() {
   const {
     configured,
@@ -97,9 +89,8 @@ export default function PublicRegistrationView() {
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [eventSearch, setEventSearch] = useState("");
-  const [previousSubmissions, setPreviousSubmissions] = useState([]);
-  const [previousSubmissionsLoading, setPreviousSubmissionsLoading] = useState(false);
-  const [previousSubmissionsError, setPreviousSubmissionsError] = useState("");
+  const [previousSelectionsLoading, setPreviousSelectionsLoading] = useState(false);
+  const [previousSelectionsError, setPreviousSelectionsError] = useState("");
   const deferredEventSearch = useDeferredValue(eventSearch);
 
   const villaOptions = useMemo(
@@ -160,26 +151,34 @@ export default function PublicRegistrationView() {
     filteredSportsEvents.length > 0;
   const publicRegistrationLocked = appSettings.publicRegistrationLocked;
 
-  const refreshPreviousSubmissions = async (nextPlayerId) => {
+  const loadPreviousSelections = async (nextPlayerId) => {
     if (!nextPlayerId) {
-      setPreviousSubmissions([]);
-      setPreviousSubmissionsError("");
+      setSelectedSportEventIds([]);
+      setPreviousSelectionsError("");
       return;
     }
 
-    setPreviousSubmissionsLoading(true);
-    setPreviousSubmissionsError("");
+    setPreviousSelectionsLoading(true);
+    setPreviousSelectionsError("");
 
     try {
       const submissions = await getPlayerInterestSubmissions(nextPlayerId);
-      setPreviousSubmissions(submissions);
+      setSelectedSportEventIds(
+        Array.from(
+          new Set(
+            submissions.flatMap((submission) =>
+              submission.sportEvents.map((sportEvent) => sportEvent.id),
+            ),
+          ),
+        ),
+      );
     } catch (submissionLoadError) {
-      setPreviousSubmissions([]);
-      setPreviousSubmissionsError(
-        submissionLoadError.message ?? "Previous submissions could not be loaded.",
+      setSelectedSportEventIds([]);
+      setPreviousSelectionsError(
+        submissionLoadError.message ?? "Previous selections could not be loaded.",
       );
     } finally {
-      setPreviousSubmissionsLoading(false);
+      setPreviousSelectionsLoading(false);
     }
   };
 
@@ -188,29 +187,37 @@ export default function PublicRegistrationView() {
 
     async function loadPreviousSubmissions() {
       if (!playerId) {
-        setPreviousSubmissions([]);
-        setPreviousSubmissionsError("");
+        setSelectedSportEventIds([]);
+        setPreviousSelectionsError("");
         return;
       }
 
-      setPreviousSubmissionsLoading(true);
-      setPreviousSubmissionsError("");
+      setPreviousSelectionsLoading(true);
+      setPreviousSelectionsError("");
 
       try {
         const submissions = await getPlayerInterestSubmissions(playerId);
         if (active) {
-          setPreviousSubmissions(submissions);
+          setSelectedSportEventIds(
+            Array.from(
+              new Set(
+                submissions.flatMap((submission) =>
+                  submission.sportEvents.map((sportEvent) => sportEvent.id),
+                ),
+              ),
+            ),
+          );
         }
       } catch (submissionLoadError) {
         if (active) {
-          setPreviousSubmissions([]);
-          setPreviousSubmissionsError(
-            submissionLoadError.message ?? "Previous submissions could not be loaded.",
+          setSelectedSportEventIds([]);
+          setPreviousSelectionsError(
+            submissionLoadError.message ?? "Previous selections could not be loaded.",
           );
         }
       } finally {
         if (active) {
-          setPreviousSubmissionsLoading(false);
+          setPreviousSelectionsLoading(false);
         }
       }
     }
@@ -226,8 +233,7 @@ export default function PublicRegistrationView() {
     setVillaNumber(nextVillaNumber);
     setPlayerId("");
     setSelectedSportEventIds([]);
-    setPreviousSubmissions([]);
-    setPreviousSubmissionsError("");
+    setPreviousSelectionsError("");
     setStatus("");
   };
 
@@ -271,8 +277,7 @@ export default function PublicRegistrationView() {
         playerId,
         sportEventIds: selectedSportEventIds,
       });
-      setSelectedSportEventIds([]);
-      await refreshPreviousSubmissions(playerId);
+      await loadPreviousSelections(playerId);
       setStatus(
         `Interest saved for ${response.playerName}. ${response.selectedEventCount} event${response.selectedEventCount === 1 ? "" : "s"} submitted.`,
       );
@@ -373,6 +378,12 @@ export default function PublicRegistrationView() {
                     No exact category match was found, so all available sports events are shown.
                   </p>
                 ) : null}
+                {previousSelectionsLoading ? (
+                  <p className="field-hint">Loading previous selections...</p>
+                ) : null}
+                {previousSelectionsError ? (
+                  <p className="error-note">{previousSelectionsError}</p>
+                ) : null}
                 {eligibleSportsEvents.map((sportEvent) => {
                   const selected = selectedSportEventIds.includes(sportEvent.id);
 
@@ -412,42 +423,6 @@ export default function PublicRegistrationView() {
               Public sports registration is currently locked. You can view previous submissions,
               but new interests cannot be submitted right now.
             </p>
-          ) : null}
-
-          {selectedPlayer ? (
-            <section className="panel public-interest-events-panel">
-              <SectionTitle
-                title="Previous Submissions"
-                description={`Last submitted interests for ${selectedPlayer.name}.`}
-              />
-              {previousSubmissionsLoading ? (
-                <p className="empty-note">Loading previous submissions...</p>
-              ) : previousSubmissionsError ? (
-                <p className="error-note">{previousSubmissionsError}</p>
-              ) : previousSubmissions.length > 0 ? (
-                <div className="overview-list compact-overview-list">
-                  {previousSubmissions.map((submission) => (
-                    <article key={submission.id} className="overview-item">
-                      <div>
-                        <h4>{formatDateTime(submission.createdAt)}</h4>
-                        <p>
-                          Villa {submission.villaNumber} | {submission.playerCategory}
-                        </p>
-                        <div className="roster-preview">
-                          {submission.sportEvents.map((sportEvent) => (
-                            <span key={sportEvent.id} className="roster-token">
-                              {sportEvent.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <p className="empty-note">No previous submissions found for this player.</p>
-              )}
-            </section>
           ) : null}
 
           {error ? <p className="error-note">{error}</p> : null}

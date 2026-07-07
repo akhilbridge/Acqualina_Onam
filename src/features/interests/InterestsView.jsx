@@ -36,9 +36,11 @@ export default function InterestsView({
   submissions,
   sportsEvents,
   players,
+  role,
   onUpdateSubmission,
   onDeleteSubmission,
 }) {
+  const canManageSubmissions = role === "admin";
   const [searchTerm, setSearchTerm] = useState("");
   const [eventFilter, setEventFilter] = useState("all");
   const [editingSubmissionId, setEditingSubmissionId] = useState("");
@@ -199,7 +201,11 @@ export default function InterestsView({
     <section className="view-stack">
       <SectionTitle
         title="Public Interest Submissions"
-        description="Admin can review anonymous public event-interest submissions, including selected player, events, time, and captured IP address."
+        description={
+          canManageSubmissions
+            ? "Admin can review anonymous public event-interest submissions, including selected player, events, time, and captured IP address."
+            : "Captains can review public event-interest submissions from players in their assigned team."
+        }
         action={
           <div className="players-toolbar">
             <label className="field-inline players-filter-field">
@@ -228,7 +234,7 @@ export default function InterestsView({
         }
       />
 
-      {editingSubmission ? (
+      {canManageSubmissions && editingSubmission ? (
         <section className="panel">
           <form className="form-panel" onSubmit={handleSubmit}>
             <SectionTitle
@@ -343,9 +349,11 @@ export default function InterestsView({
                 <p>
                   Submitted: {formatDateTime(submission.createdAt)}
                 </p>
-                <p>
-                  IP: {submission.ipAddress || "Not captured"}
-                </p>
+                {canManageSubmissions ? (
+                  <p>
+                    IP: {submission.ipAddress || "Not captured"}
+                  </p>
+                ) : null}
                 <div className="roster-preview">
                   {submission.sportEvents.map((sportEvent) => (
                     <span key={sportEvent.id} className="roster-token">
@@ -353,24 +361,26 @@ export default function InterestsView({
                     </span>
                   ))}
                 </div>
-                <div className="table-actions">
-                  <button
-                    type="button"
-                    className="ghost-button inline-button"
-                    onClick={() => handleEditStart(submission)}
-                    disabled={submitting}
-                  >
-                    Edit details
-                  </button>
-                  <button
-                    type="button"
-                    className="danger-button inline-button"
-                    onClick={() => handleDelete(submission)}
-                    disabled={submitting}
-                  >
-                    Delete
-                  </button>
-                </div>
+                {canManageSubmissions ? (
+                  <div className="table-actions">
+                    <button
+                      type="button"
+                      className="ghost-button inline-button"
+                      onClick={() => handleEditStart(submission)}
+                      disabled={submitting}
+                    >
+                      Edit details
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button inline-button"
+                      onClick={() => handleDelete(submission)}
+                      disabled={submitting}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}

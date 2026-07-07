@@ -696,7 +696,7 @@ export function useAppDatabase(userId) {
     const nextDatabase = await readSupabaseDatabase(supabase);
     const nextViewerProfile = nextDatabase.users.find((user) => user.id === userId) ?? null;
 
-    if (nextViewerProfile?.role === "admin") {
+    if (["admin", "captain"].includes(nextViewerProfile?.role)) {
       nextDatabase.publicInterestSubmissions = await loadAdminPublicInterestSubmissions({
         supabase,
         nextDatabase,
@@ -730,7 +730,7 @@ export function useAppDatabase(userId) {
         const nextViewerProfile =
           nextDatabase.users.find((user) => user.id === userId) ?? null;
 
-        if (nextViewerProfile?.role === "admin") {
+        if (["admin", "captain"].includes(nextViewerProfile?.role)) {
           nextDatabase.publicInterestSubmissions = await loadAdminPublicInterestSubmissions({
             supabase,
             nextDatabase,
