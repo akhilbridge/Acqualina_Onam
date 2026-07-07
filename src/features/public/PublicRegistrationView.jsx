@@ -89,12 +89,14 @@ export default function PublicRegistrationView() {
     configured,
     loading,
     error,
+    teams,
     players,
     sportsEvents,
     appSettings,
     submitInterest,
     getPlayerInterestSubmissions,
   } = usePublicInterestRegistration();
+  const [teamId, setTeamId] = useState("");
   const [villaNumber, setVillaNumber] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [selectedSportEventIds, setSelectedSportEventIds] = useState([]);
@@ -105,17 +107,32 @@ export default function PublicRegistrationView() {
   const [previousSelectionsError, setPreviousSelectionsError] = useState("");
   const deferredEventSearch = useDeferredValue(eventSearch);
 
+  const teamOptions = useMemo(() => {
+    const activeTeamIds = new Set(players.map((player) => player.teamId).filter(Boolean));
+
+    if (activeTeamIds.size === 0) {
+      return teams;
+    }
+
+    return teams.filter((team) => activeTeamIds.has(team.id));
+  }, [players, teams]);
+
+  const teamPlayers = useMemo(
+    () => players.filter((player) => player.teamId === teamId).sort((left, right) => left.name.localeCompare(right.name)),
+    [players, teamId],
+  );
+
   const villaOptions = useMemo(
-    () => sortVillaNumbers(new Set(players.map((player) => player.villaNumber))),
-    [players],
+    () => sortVillaNumbers(new Set(teamPlayers.map((player) => player.villaNumber))),
+    [teamPlayers],
   );
 
   const villaPlayers = useMemo(
     () =>
-      players.filter((player) => player.villaNumber === villaNumber).sort((left, right) =>
+      teamPlayers.filter((player) => player.villaNumber === villaNumber).sort((left, right) =>
         left.name.localeCompare(right.name),
       ),
-    [players, villaNumber],
+    [teamPlayers, villaNumber],
   );
 
   const selectedPlayer = villaPlayers.find((player) => player.id === playerId) ?? null;
@@ -241,6 +258,15 @@ export default function PublicRegistrationView() {
     };
   }, [playerId]);
 
+  const handleTeamChange = (nextTeamId) => {
+    setTeamId(nextTeamId);
+    setVillaNumber("");
+    setPlayerId("");
+    setSelectedSportEventIds([]);
+    setPreviousSelectionsError("");
+    setStatus("");
+  };
+
   const handleVillaChange = (nextVillaNumber) => {
     setVillaNumber(nextVillaNumber);
     setPlayerId("");
@@ -266,8 +292,8 @@ export default function PublicRegistrationView() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!villaNumber || !playerId) {
-      setStatus("Choose a villa number and player first.");
+    if (!teamId || !villaNumber || !playerId) {
+      setStatus("Choose a team, villa number, and player first.");
       return;
     }
 
@@ -322,17 +348,33 @@ export default function PublicRegistrationView() {
         <section className="panel public-registration-panel">
           <SectionTitle
             title="Public Sports Registration"
-            description="Choose your villa number, player, and submit interest for the events you are eligible to join."
+            description="Choose your team, villa number, player, and submit interest for the events you are eligible to join."
           />
 
           <form className="form-panel" onSubmit={handleSubmit}>
             <div className="dashboard-grid public-registration-grid">
               <label>
+                <span>Team</span>
+                <select
+                  value={teamId}
+                  onChange={(event) => handleTeamChange(event.target.value)}
+                  disabled={loading || submitting}
+                >
+                  <option value="">Select team</option>
+                  {teamOptions.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>Villa number</span>
                 <select
                   value={villaNumber}
                   onChange={(event) => handleVillaChange(event.target.value)}
-                  disabled={loading || submitting}
+                  disabled={loading || submitting || !teamId}
                 >
                   <option value="">Select villa number</option>
                   {villaOptions.map((option) => (
@@ -348,7 +390,7 @@ export default function PublicRegistrationView() {
                 <select
                   value={playerId}
                   onChange={(event) => handlePlayerChange(event.target.value)}
-                  disabled={loading || submitting || !villaNumber}
+                  disabled={loading || submitting || !teamId || !villaNumber}
                 >
                   <option value="">Select player</option>
                   {villaPlayers.map((player) => (
@@ -385,7 +427,7 @@ export default function PublicRegistrationView() {
                 description={
                   selectedPlayer
                     ? `Select one or more events for ${selectedPlayer.name}.`
-                    : "Choose a player first to see eligible events."
+                    : "Choose a team, villa number, and player first to see eligible events."
                 }
               />
 
@@ -432,7 +474,7 @@ export default function PublicRegistrationView() {
                   ) : null}
                 </div>
               ) : (
-                <p className="empty-note">Select a villa number and player to continue.</p>
+                <p className="empty-note">Select a team, villa number, and player to continue.</p>
               )}
             </section>
 

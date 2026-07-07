@@ -504,12 +504,14 @@ export function usePublicInterestRegistration() {
   const configured = hasSupabaseConfig();
   const [loading, setLoading] = useState(configured);
   const [error, setError] = useState("");
+  const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [sportsEvents, setSportsEvents] = useState([]);
   const [appSettings, setAppSettings] = useState(EMPTY_DATABASE.appSettings);
 
   const refresh = async () => {
     if (!supabase) {
+      setTeams([]);
       setPlayers([]);
       setSportsEvents([]);
       setAppSettings(EMPTY_DATABASE.appSettings);
@@ -517,11 +519,12 @@ export function usePublicInterestRegistration() {
       return;
     }
 
-    const [appSettingsResponse, playersResponse, sportsEventsResponse] = await Promise.all([
+    const [appSettingsResponse, teamsResponse, playersResponse, sportsEventsResponse] = await Promise.all([
       supabase.from("app_settings").select("*").eq("id", "global").maybeSingle(),
+      supabase.from("teams").select("id, name").order("name"),
       supabase
         .from("players")
-        .select("id, name, villa_number, category")
+        .select("id, name, villa_number, category, team_id")
         .order("villa_number")
         .order("name"),
       supabase
@@ -531,7 +534,11 @@ export function usePublicInterestRegistration() {
         .order("name"),
     ]);
 
-    const publicError = appSettingsResponse.error || playersResponse.error || sportsEventsResponse.error;
+    const publicError =
+      appSettingsResponse.error ||
+      teamsResponse.error ||
+      playersResponse.error ||
+      sportsEventsResponse.error;
     if (publicError) {
       throw publicError;
     }
@@ -540,12 +547,19 @@ export function usePublicInterestRegistration() {
       publicRegistrationLocked: Boolean(appSettingsResponse.data?.public_registration_locked),
       forceReauthAfter: appSettingsResponse.data?.force_reauth_after ?? null,
     });
+    setTeams(
+      (teamsResponse.data ?? []).map((team) => ({
+        id: team.id,
+        name: team.name,
+      })),
+    );
     setPlayers(
       (playersResponse.data ?? []).map((player) => ({
         id: player.id,
         name: player.name,
         villaNumber: player.villa_number,
         category: normalizePlayerCategory(player.category),
+        teamId: player.team_id,
       })),
     );
     setSportsEvents(
@@ -673,6 +687,7 @@ export function usePublicInterestRegistration() {
     configured,
     loading,
     error,
+    teams,
     players,
     sportsEvents,
     appSettings,
