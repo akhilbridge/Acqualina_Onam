@@ -16,6 +16,7 @@ const EMPTY_DATABASE = {
   publicInterestSubmissions: [],
   appSettings: {
     publicRegistrationLocked: false,
+    forceReauthAfter: null,
   },
 };
 
@@ -235,6 +236,7 @@ function mapSupabaseDatabase({
     publicInterestSubmissions: [],
     appSettings: {
       publicRegistrationLocked: Boolean(appSettingsRow.public_registration_locked),
+      forceReauthAfter: appSettingsRow.force_reauth_after ?? null,
     },
   };
 }
@@ -536,6 +538,7 @@ export function usePublicInterestRegistration() {
 
     setAppSettings({
       publicRegistrationLocked: Boolean(appSettingsResponse.data?.public_registration_locked),
+      forceReauthAfter: appSettingsResponse.data?.force_reauth_after ?? null,
     });
     setPlayers(
       (playersResponse.data ?? []).map((player) => ({
@@ -1651,16 +1654,26 @@ export function useAppDatabase(userId) {
     await refresh();
   };
 
-  const updateAppSettings = async ({ publicRegistrationLocked }) => {
+  const updateAppSettings = async (nextAppSettings) => {
     if (!supabase) {
       throw new Error("Supabase is not configured.");
     }
 
+    const { publicRegistrationLocked, forceReauthAfter } = nextAppSettings;
+    const nextSettings = {
+      public_registration_locked: Boolean(publicRegistrationLocked),
+    };
+
+    if (Object.prototype.hasOwnProperty.call(nextAppSettings ?? {}, "forceReauthAfter")) {
+      nextSettings.force_reauth_after =
+        typeof forceReauthAfter === "string" && forceReauthAfter.trim().length > 0
+          ? forceReauthAfter
+          : null;
+    }
+
     const { error: updateSettingsError } = await supabase
       .from("app_settings")
-      .update({
-        public_registration_locked: Boolean(publicRegistrationLocked),
-      })
+      .update(nextSettings)
       .eq("id", "global");
 
     if (updateSettingsError) {

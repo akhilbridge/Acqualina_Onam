@@ -46,11 +46,12 @@ alter type public.app_role add value if not exists 'player';
 create table if not exists public.app_settings (
   id text primary key default 'global' check (id = 'global'),
   public_registration_locked boolean not null default false,
+  force_reauth_after timestamptz,
   updated_at timestamptz not null default timezone('utc', now())
 );
 
-insert into public.app_settings (id, public_registration_locked)
-values ('global', false)
+insert into public.app_settings (id, public_registration_locked, force_reauth_after)
+values ('global', false, null)
 on conflict (id) do nothing;
 
 create table if not exists public.teams (

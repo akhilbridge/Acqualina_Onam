@@ -7,6 +7,7 @@ export default function SettingsView({ appSettings, onUpdateAppSettings }) {
   );
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reauthSubmitting, setReauthSubmitting] = useState(false);
 
   useEffect(() => {
     setPublicRegistrationLocked(Boolean(appSettings.publicRegistrationLocked));
@@ -30,6 +31,23 @@ export default function SettingsView({ appSettings, onUpdateAppSettings }) {
   const hasChanges =
     publicRegistrationLocked !== Boolean(appSettings.publicRegistrationLocked);
 
+  const handleForceReauth = async () => {
+    setReauthSubmitting(true);
+    setStatus("");
+
+    try {
+      await onUpdateAppSettings({
+        publicRegistrationLocked,
+        forceReauthAfter: new Date().toISOString(),
+      });
+      setStatus("All currently signed-in users will be asked to log in again.");
+    } catch (settingsError) {
+      setStatus(settingsError.message ?? "Force re-login update failed.");
+    } finally {
+      setReauthSubmitting(false);
+    }
+  };
+
   return (
     <section className="view-stack">
       <SectionTitle
@@ -49,7 +67,7 @@ export default function SettingsView({ appSettings, onUpdateAppSettings }) {
               type="checkbox"
               checked={publicRegistrationLocked}
               onChange={(event) => setPublicRegistrationLocked(event.target.checked)}
-              disabled={submitting}
+              disabled={submitting || reauthSubmitting}
             />
             <span>Lock public sports registration</span>
             <small>
@@ -57,15 +75,32 @@ export default function SettingsView({ appSettings, onUpdateAppSettings }) {
             </small>
           </label>
 
+          <div className="assignment-row selected">
+            <span>Force sign-in again</span>
+            <small>
+              {appSettings.forceReauthAfter
+                ? `Current re-login cutoff: ${new Date(appSettings.forceReauthAfter).toLocaleString()}`
+                : "No forced re-login is currently set."}
+            </small>
+          </div>
+
           {status ? <p className="status-note">{status}</p> : null}
 
           <div className="form-actions">
             <button
               type="submit"
               className="primary-button"
-              disabled={submitting || !hasChanges}
+              disabled={submitting || reauthSubmitting || !hasChanges}
             >
               {submitting ? "Saving..." : "Save settings"}
+            </button>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={handleForceReauth}
+              disabled={submitting || reauthSubmitting}
+            >
+              {reauthSubmitting ? "Updating..." : "Require login again"}
             </button>
           </div>
         </form>

@@ -1,4 +1,4 @@
-import { startTransition, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import Sidebar, { NAV_ITEMS } from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
 import DashboardView from "./features/dashboard/DashboardView";
@@ -24,6 +24,32 @@ function LoadingPanel({ title, copy }) {
   );
 }
 
+function getSessionIssuedAt(session) {
+  const token = session?.access_token;
+  if (!token) {
+    return null;
+  }
+
+  const segments = token.split(".");
+  if (segments.length < 2) {
+    return null;
+  }
+
+  try {
+    const normalizedPayload = segments[1].replace(/-/g, "+").replace(/_/g, "/");
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      "=",
+    );
+    const decodedPayload =
+      typeof window !== "undefined" ? window.atob(paddedPayload) : atob(paddedPayload);
+    const parsedPayload = JSON.parse(decodedPayload);
+    return typeof parsedPayload.iat === "number" ? parsedPayload.iat * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const pathname =
     typeof window !== "undefined"
@@ -31,6 +57,8 @@ export default function App() {
       : "/";
   const isPublicRegistrationRoute = pathname === "/register";
   const [currentView, setCurrentView] = useState("dashboard");
+  const [forcedLogoutNotice, setForcedLogoutNotice] = useState("");
+  const [reauthenticating, setReauthenticating] = useState(false);
   const {
     configured,
     session,
@@ -71,6 +99,58 @@ export default function App() {
     toggleAssignment,
   } = useAppDatabase(session?.user?.id ?? null);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextNotice = window.sessionStorage.getItem("forcedLogoutNotice");
+    if (!nextNotice) {
+      return;
+    }
+
+    setForcedLogoutNotice(nextNotice);
+    window.sessionStorage.removeItem("forcedLogoutNotice");
+  }, []);
+
+  useEffect(() => {
+    const forceReauthAfter = database.appSettings.forceReauthAfter;
+    if (!session || !forceReauthAfter) {
+      return;
+    }
+
+    const sessionIssuedAt = getSessionIssuedAt(session);
+    const forceReauthAt = Date.parse(forceReauthAfter);
+
+    if (!Number.isFinite(forceReauthAt) || !sessionIssuedAt || sessionIssuedAt >= forceReauthAt) {
+      return;
+    }
+
+    let active = true;
+    setReauthenticating(true);
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        "forcedLogoutNotice",
+        "Your session expired because an administrator required everyone to log in again.",
+      );
+    }
+
+    signOut()
+      .catch((signOutError) => {
+        console.error("Forced sign-out failed", signOutError);
+      })
+      .finally(() => {
+        if (active) {
+          setReauthenticating(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [database.appSettings.forceReauthAfter, session, signOut]);
+
   if (isPublicRegistrationRoute) {
     return <PublicRegistrationView />;
   }
@@ -92,8 +172,17 @@ export default function App() {
     return (
       <LoginView
         onSignIn={signIn}
-        error={authError}
+        error={forcedLogoutNotice || authError}
         configured
+      />
+    );
+  }
+
+  if (reauthenticating) {
+    return (
+      <LoadingPanel
+        title="Refreshing sign-in"
+        copy="An administrator required a fresh login, so your current session is being closed."
       />
     );
   }
