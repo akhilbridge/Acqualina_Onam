@@ -465,9 +465,7 @@ export default function PublicRegistrationView() {
                   ? "Saving interest..."
                   : "Submit interest"}
             </button>
-            <a className="ghost-button public-login-link" href="/">
-              Staff login
-            </a>
+           
           </div>
         </form>
       </section>
