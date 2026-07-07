@@ -227,7 +227,7 @@ export default function InterestsView({
               <input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Player, villa, category, or IP"
+                placeholder="Player, villa or category"
               />
             </label>
           </div>
