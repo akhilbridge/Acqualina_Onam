@@ -1,0 +1,10 @@
+project_id = "replace-with-your-supabase-project-id"
+
+[functions.create-staff]
+verify_jwt = true
+
+[functions.generate-fixtures]
+verify_jwt = true
+
+[functions.submit-public-interest]
+verify_jwt = false
