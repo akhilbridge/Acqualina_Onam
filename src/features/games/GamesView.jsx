@@ -4,6 +4,7 @@ import {
   EVENT_CATEGORY_OPTIONS,
   SPORTS_EVENT_OPTIONS,
   SPORT_EVENT_TEMPLATES,
+  normalizePlayerCategory,
 } from "../../data/seed";
 
 const EMPTY_GAME_FORM = {
@@ -29,6 +30,69 @@ const EMPTY_SPORT_EVENT_FORM = {
   playersPerSide: "1",
   status: "draft",
 };
+
+function normalizeEventEligibilityCategory(category) {
+  const normalized = String(category ?? "").trim().toLowerCase();
+
+  if (normalized === "mens" || normalized === "men" || normalized === "gents") {
+    return "gents";
+  }
+
+  if (normalized === "ladies" || normalized === "women") {
+    return "ladies";
+  }
+
+  if (normalized === "boys" || normalized === "jr boys" || normalized === "jr. boys") {
+    return "boys";
+  }
+
+  if (normalized === "girls" || normalized === "jr girls" || normalized === "jr. girls") {
+    return "girls";
+  }
+
+  return normalized;
+}
+
+function isPlayerEligibleForEvent(playerCategory, eventCategory) {
+  const normalizedPlayerCategory = normalizeEventEligibilityCategory(
+    normalizePlayerCategory(playerCategory),
+  );
+  const normalizedEventCategory = String(eventCategory ?? "").trim().toLowerCase();
+
+  if (!normalizedEventCategory || normalizedEventCategory === "open") {
+    return true;
+  }
+
+  if (normalizedEventCategory.includes("kids mixed")) {
+    return normalizedPlayerCategory === "boys" || normalizedPlayerCategory === "girls";
+  }
+
+  if (normalizedEventCategory.includes("kids")) {
+    return normalizedPlayerCategory === "boys" || normalizedPlayerCategory === "girls";
+  }
+
+  if (normalizedEventCategory.includes("adults")) {
+    return normalizedPlayerCategory === "gents" || normalizedPlayerCategory === "ladies";
+  }
+
+  if (normalizedEventCategory.includes("gents")) {
+    return normalizedPlayerCategory === "gents";
+  }
+
+  if (normalizedEventCategory.includes("ladies")) {
+    return normalizedPlayerCategory === "ladies";
+  }
+
+  if (normalizedEventCategory.includes("boys")) {
+    return normalizedPlayerCategory === "boys";
+  }
+
+  if (normalizedEventCategory.includes("girls")) {
+    return normalizedPlayerCategory === "girls";
+  }
+
+  return true;
+}
 
 function createEmptyGameForm(teams) {
   return {
@@ -433,6 +497,7 @@ export default function GamesView({
   const [selectedSportEventTemplateName, setSelectedSportEventTemplateName] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedRegistrationTeamId, setSelectedRegistrationTeamId] = useState("");
+  const [registrationPlayerFilter, setRegistrationPlayerFilter] = useState("all");
   const [registrationDraftPlayerIds, setRegistrationDraftPlayerIds] = useState([]);
   const [selectedGameEntryAId, setSelectedGameEntryAId] = useState("");
   const [selectedGameEntryBId, setSelectedGameEntryBId] = useState("");
@@ -536,6 +601,20 @@ export default function GamesView({
     availableRegistrationTeams.find((team) => team.id === selectedRegistrationTeamId) ?? null;
   const registrationTeamPlayers = database.players.filter(
     (player) => player.teamId === registrationTeam?.id,
+  );
+  const eligibleRegistrationTeamPlayers = registrationTeamPlayers.filter((player) =>
+    isPlayerEligibleForEvent(player.category, selectedEvent?.eventCategory),
+  );
+  const interestedPlayerIdsForEvent = new Set(
+    database.publicInterestSubmissions
+      .filter((submission) => submission.sportEventIds.includes(selectedEventId))
+      .map((submission) => submission.playerId)
+      .filter(Boolean),
+  );
+  const visibleRegistrationTeamPlayers = eligibleRegistrationTeamPlayers.filter((player) =>
+    registrationPlayerFilter === "interested"
+      ? interestedPlayerIdsForEvent.has(player.id)
+      : true,
   );
   const registrationEntries = database.sportEventEntries
     .filter(
@@ -1353,9 +1432,20 @@ export default function GamesView({
                     : "Choose a sport event first"}
                 </p>
               </div>
+              <label className="players-filter-field registration-roster-filter">
+                <span>Players</span>
+                <select
+                  value={registrationPlayerFilter}
+                  onChange={(event) => setRegistrationPlayerFilter(event.target.value)}
+                  disabled={!selectedEvent || !registrationTeam}
+                >
+                  <option value="all">Show all</option>
+                  <option value="interested">Interested only</option>
+                </select>
+              </label>
             </div>
             <div className="assignment-list">
-              {registrationTeamPlayers.map((player) => {
+              {visibleRegistrationTeamPlayers.map((player) => {
                 const selected = registrationDraftPlayerIds.includes(player.id);
                 const alreadyUsed = registeredPlayerIdsForTeam.has(player.id);
                 const disableUnchecked =
@@ -1385,8 +1475,14 @@ export default function GamesView({
                   </label>
                 );
               })}
-              {registrationTeamPlayers.length === 0 ? (
-                <p className="empty-note">No players added to this team yet.</p>
+              {visibleRegistrationTeamPlayers.length === 0 ? (
+                <p className="empty-note">
+                  {registrationTeamPlayers.length === 0
+                    ? "No players added to this team yet."
+                    : eligibleRegistrationTeamPlayers.length === 0
+                      ? "No players in this team match the selected event category."
+                      : "No matching players from this category have submitted interest for this event."}
+                </p>
               ) : null}
             </div>
           </div>

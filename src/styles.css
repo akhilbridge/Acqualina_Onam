@@ -234,6 +234,9 @@ body.onam-cursor-enabled textarea {
 .compact-overview-list {
   gap: 0.75rem;
   max-height: min(48vh, 480px);
+  padding-top: 0.35rem;
+  padding-bottom: 0.2rem;
+  scroll-padding-top: 0.35rem;
 }
 
 .fixture-summary-card p {
@@ -1175,6 +1178,13 @@ a.ghost-button,
   scrollbar-gutter: stable;
 }
 
+.game-stack {
+  max-height: none;
+  overflow: visible;
+  padding-top: 0.35rem;
+  padding-right: 0;
+}
+
 .schedule-list::-webkit-scrollbar,
 .overview-list::-webkit-scrollbar,
 .game-stack::-webkit-scrollbar,
@@ -1482,6 +1492,15 @@ td {
 .assignment-subtitle {
   margin: 0.28rem 0 0;
   color: var(--muted);
+}
+
+.registration-roster-filter {
+  min-width: 180px;
+  justify-self: end;
+}
+
+.registration-roster-filter select {
+  min-height: 44px;
 }
 
 .assignment-row {
@@ -1868,6 +1887,11 @@ td {
   .toolbar,
   .field-inline {
     width: 100%;
+  }
+
+  .registration-roster-filter {
+    width: 100%;
+    min-width: 0;
   }
 
   .players-toolbar {
