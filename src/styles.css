@@ -1669,7 +1669,7 @@ td {
     line-height: 1.5;
   }
 
-  input,
+  input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
     min-height: 52px;
@@ -1776,6 +1776,14 @@ td {
   .public-interest-event-list .assignment-row {
     padding: 0.95rem 0.9rem;
     gap: 0.45rem 0.78rem;
+  }
+
+  .public-interest-event-list .assignment-row input[type="checkbox"] {
+    width: 1.05rem;
+    height: 1.05rem;
+    min-height: 0;
+    margin-top: 0.16rem;
+    align-self: start;
   }
 
   .public-interest-event-list .assignment-row small {
