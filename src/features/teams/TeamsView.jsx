@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SectionTitle from "../../components/SectionTitle";
 
 const TEAM_PLAYER_OPTION_PREFIX = "player:";
@@ -46,6 +46,9 @@ export default function TeamsView({
   const [userForm, setUserForm] = useState(EMPTY_USER_FORM);
   const [teamForm, setTeamForm] = useState(EMPTY_TEAM_FORM);
   const [editingTeamId, setEditingTeamId] = useState("");
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [pageStatus, setPageStatus] = useState("");
   const [userStatus, setUserStatus] = useState("");
   const [teamStatus, setTeamStatus] = useState("");
   const [userSubmitting, setUserSubmitting] = useState(false);
@@ -66,6 +69,31 @@ export default function TeamsView({
   const resetTeamForm = () => {
     setTeamForm(EMPTY_TEAM_FORM);
     setEditingTeamId("");
+  };
+
+  const handleOpenUserModal = () => {
+    setPageStatus("");
+    setUserStatus("");
+    setIsUserModalOpen(true);
+  };
+
+  const handleCloseUserModal = () => {
+    setUserForm(EMPTY_USER_FORM);
+    setUserStatus("");
+    setIsUserModalOpen(false);
+  };
+
+  const handleOpenTeamModal = () => {
+    setPageStatus("");
+    setTeamStatus("");
+    resetTeamForm();
+    setIsTeamModalOpen(true);
+  };
+
+  const handleCloseTeamModal = () => {
+    resetTeamForm();
+    setTeamStatus("");
+    setIsTeamModalOpen(false);
   };
 
   const usePlayerForCaptainLogin = (player) => {
@@ -96,9 +124,12 @@ export default function TeamsView({
     }
 
     usePlayerForCaptainLogin(selectedPlayer);
+    setIsTeamModalOpen(false);
+    setIsUserModalOpen(true);
     setTeamStatus(
-      `${selectedPlayer.name} is a roster player. Create a captain login for this player in the left form, then select that login here.`,
+      `${selectedPlayer.name} is a roster player. Create a captain login for this player, then reopen the team popup and assign that login here.`,
     );
+    setUserStatus(`Captain login details were prefilled for ${selectedPlayer.name}.`);
   };
 
   const handleCreateUser = async (event) => {
@@ -123,8 +154,11 @@ export default function TeamsView({
         role: userForm.role,
         teamId: userForm.teamId || null,
       });
+      const savedRole = userForm.role;
       setUserForm(EMPTY_USER_FORM);
-      setUserStatus(`${getUserRoleLabel(userForm.role)} account created successfully.`);
+      setUserStatus(`${getUserRoleLabel(savedRole)} account created successfully.`);
+      setPageStatus(`${getUserRoleLabel(savedRole)} login created successfully.`);
+      setIsUserModalOpen(false);
     } catch (createError) {
       setUserStatus(createError.message ?? "User creation failed.");
     } finally {
@@ -154,12 +188,18 @@ export default function TeamsView({
           name: teamForm.name.trim(),
           captainUserId: teamForm.captainUserId || null,
         });
+        const savedTeamName = teamForm.name.trim();
         resetTeamForm();
         setTeamStatus("Team updated successfully.");
+        setPageStatus(`${savedTeamName} updated successfully.`);
+        setIsTeamModalOpen(false);
       } else {
-        await onCreateTeam(teamForm.name.trim(), teamForm.captainUserId || null);
+        const savedTeamName = teamForm.name.trim();
+        await onCreateTeam(savedTeamName, teamForm.captainUserId || null);
         resetTeamForm();
         setTeamStatus("Team created successfully.");
+        setPageStatus(`${savedTeamName} created successfully.`);
+        setIsTeamModalOpen(false);
       }
     } catch (createError) {
       setTeamStatus(createError.message ?? "Team save failed.");
@@ -169,12 +209,14 @@ export default function TeamsView({
   };
 
   const handleEditTeam = (team) => {
+    setPageStatus("");
     setTeamStatus("");
     setEditingTeamId(team.id);
     setTeamForm({
       name: team.name,
       captainUserId: team.captainUserId ?? "",
     });
+    setIsTeamModalOpen(true);
   };
 
   const handleDeleteTeam = async (team) => {
@@ -194,6 +236,7 @@ export default function TeamsView({
         resetTeamForm();
       }
       setTeamStatus("Team deleted successfully.");
+      setPageStatus(`${team.name} deleted successfully.`);
     } catch (deleteError) {
       setTeamStatus(deleteError.message ?? "Team delete failed.");
     } finally {
@@ -201,23 +244,89 @@ export default function TeamsView({
     }
   };
 
+  useEffect(() => {
+    if (!isUserModalOpen && !isTeamModalOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        if (isUserModalOpen) {
+          handleCloseUserModal();
+          return;
+        }
+
+        if (isTeamModalOpen) {
+          handleCloseTeamModal();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isTeamModalOpen, isUserModalOpen]);
+
   return (
     <section className="view-stack">
       <SectionTitle
         title="Teams and user logins"
         description="Admins can create captain, moderator, and player logins, then connect captain logins to teams."
+        action={
+          role === "admin" ? (
+            <div className="table-actions">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleOpenUserModal}
+                disabled={userSubmitting}
+              >
+                Create user login
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleOpenTeamModal}
+                disabled={teamSubmitting}
+              >
+                Create team
+              </button>
+            </div>
+          ) : null
+        }
       />
+      {pageStatus ? <p className="status-note">{pageStatus}</p> : null}
 
-      {role === "admin" ? (
-        <div className="dashboard-grid">
-          <form className="panel form-panel" onSubmit={handleCreateUser}>
+      {role === "admin" && isUserModalOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={handleCloseUserModal}>
+          <form
+            className="panel form-panel sport-event-editor-modal"
+            onSubmit={handleCreateUser}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-user-login-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <SectionTitle
               title="Create user login"
               description="This creates a real Supabase Auth account for captains, moderators, or normal players."
+              action={
+                <button
+                  type="button"
+                  className="ghost-button inline-button"
+                  onClick={handleCloseUserModal}
+                  disabled={userSubmitting}
+                >
+                  Close
+                </button>
+              }
             />
             <label>
               <span>Full name</span>
               <input
+                id="create-user-login-title"
                 value={userForm.fullName}
                 onChange={(event) =>
                   setUserForm((current) => ({
@@ -323,19 +432,51 @@ export default function TeamsView({
               </div>
             ) : null}
             {userStatus ? <p className="status-note">{userStatus}</p> : null}
-            <button type="submit" className="primary-button" disabled={userSubmitting}>
-              {userSubmitting ? "Creating..." : "Add user"}
-            </button>
+            <div className="form-actions">
+              <button type="submit" className="primary-button" disabled={userSubmitting}>
+                {userSubmitting ? "Creating..." : "Add user"}
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleCloseUserModal}
+                disabled={userSubmitting}
+              >
+                Cancel
+              </button>
+            </div>
           </form>
+        </div>
+      ) : null}
 
-          <form className="panel form-panel" onSubmit={handleTeamSubmit}>
+      {role === "admin" && isTeamModalOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={handleCloseTeamModal}>
+          <form
+            className="panel form-panel sport-event-editor-modal"
+            onSubmit={handleTeamSubmit}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-editor-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <SectionTitle
               title={isEditingTeam ? "Edit team and captain" : "Create team"}
               description="Create a team, assign a captain login, or reassign the captain later."
+              action={
+                <button
+                  type="button"
+                  className="ghost-button inline-button"
+                  onClick={handleCloseTeamModal}
+                  disabled={teamSubmitting}
+                >
+                  Close
+                </button>
+              }
             />
             <label>
               <span>Team name</span>
               <input
+                id="team-editor-title"
                 value={teamForm.name}
                 onChange={(event) =>
                   setTeamForm((current) => ({
@@ -402,16 +543,14 @@ export default function TeamsView({
                     ? "Update team"
                     : "Create team"}
               </button>
-              {isEditingTeam ? (
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={resetTeamForm}
-                  disabled={teamSubmitting}
-                >
-                  Cancel edit
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleCloseTeamModal}
+                disabled={teamSubmitting}
+              >
+                {isEditingTeam ? "Cancel edit" : "Cancel"}
+              </button>
             </div>
           </form>
         </div>

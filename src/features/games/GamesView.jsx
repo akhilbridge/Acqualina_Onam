@@ -4,7 +4,7 @@ import {
   EVENT_CATEGORY_OPTIONS,
   SPORTS_EVENT_OPTIONS,
   SPORT_EVENT_TEMPLATES,
-  normalizePlayerCategory,
+  isPlayerEligibleForEvent,
 } from "../../data/seed";
 
 const EMPTY_GAME_FORM = {
@@ -25,75 +25,13 @@ const EMPTY_GAME_FORM = {
 const EMPTY_SPORT_EVENT_FORM = {
   name: "",
   sportType: "",
-  eventCategory: "Open",
+  eventCategory: EVENT_CATEGORY_OPTIONS[0] ?? "Gents",
   venue: "TBD",
   rules: "",
   playersPerSide: "1",
-  status: "draft",
+  status: "registration_open",
+  isActive: true,
 };
-
-function normalizeEventEligibilityCategory(category) {
-  const normalized = String(category ?? "").trim().toLowerCase();
-
-  if (normalized === "mens" || normalized === "men" || normalized === "gents") {
-    return "gents";
-  }
-
-  if (normalized === "ladies" || normalized === "women") {
-    return "ladies";
-  }
-
-  if (normalized === "boys" || normalized === "jr boys" || normalized === "jr. boys") {
-    return "boys";
-  }
-
-  if (normalized === "girls" || normalized === "jr girls" || normalized === "jr. girls") {
-    return "girls";
-  }
-
-  return normalized;
-}
-
-function isPlayerEligibleForEvent(playerCategory, eventCategory) {
-  const normalizedPlayerCategory = normalizeEventEligibilityCategory(
-    normalizePlayerCategory(playerCategory),
-  );
-  const normalizedEventCategory = String(eventCategory ?? "").trim().toLowerCase();
-
-  if (!normalizedEventCategory || normalizedEventCategory === "open") {
-    return true;
-  }
-
-  if (normalizedEventCategory.includes("kids mixed")) {
-    return normalizedPlayerCategory === "boys" || normalizedPlayerCategory === "girls";
-  }
-
-  if (normalizedEventCategory.includes("kids")) {
-    return normalizedPlayerCategory === "boys" || normalizedPlayerCategory === "girls";
-  }
-
-  if (normalizedEventCategory.includes("adults")) {
-    return normalizedPlayerCategory === "gents" || normalizedPlayerCategory === "ladies";
-  }
-
-  if (normalizedEventCategory.includes("gents")) {
-    return normalizedPlayerCategory === "gents";
-  }
-
-  if (normalizedEventCategory.includes("ladies")) {
-    return normalizedPlayerCategory === "ladies";
-  }
-
-  if (normalizedEventCategory.includes("boys")) {
-    return normalizedPlayerCategory === "boys";
-  }
-
-  if (normalizedEventCategory.includes("girls")) {
-    return normalizedPlayerCategory === "girls";
-  }
-
-  return true;
-}
 
 function createEmptyGameForm(teams) {
   return {
@@ -134,11 +72,12 @@ function createSportEventFormFromEvent(sportEvent) {
   return {
     name: sportEvent.name,
     sportType: sportEvent.sportType,
-    eventCategory: sportEvent.eventCategory ?? "Open",
+    eventCategory: sportEvent.eventCategory ?? EVENT_CATEGORY_OPTIONS[0] ?? "Gents",
     venue: sportEvent.venue,
     rules: sportEvent.rules ?? "",
     playersPerSide: String(sportEvent.playersPerSide),
     status: sportEvent.status,
+    isActive: sportEvent.isActive ?? true,
   };
 }
 
@@ -193,11 +132,24 @@ function getEntryOptionLabel(entry, playersById, teamsById) {
   return `${teamName}: ${playerNames || "Players not found"}`;
 }
 
+function sameMembers(left, right) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const leftSorted = [...left].sort();
+  const rightSorted = [...right].sort();
+
+  return leftSorted.every((value, index) => value === rightSorted[index]);
+}
+
 function EventRegistrationEntryList({
   entries,
   playersById,
   teamsById,
   onDeleteEntry,
+  protectedEntryIds,
+  role,
 }) {
   if (entries.length === 0) {
     return <p className="empty-note">No saved team entries for this sport event yet.</p>;
@@ -210,6 +162,7 @@ function EventRegistrationEntryList({
           .map((playerId) => playersById.get(playerId)?.name)
           .filter(Boolean)
           .join(", ");
+        const deleteBlocked = role === "captain" && protectedEntryIds.has(entry.id);
 
         return (
           <article key={entry.id} className="overview-item">
@@ -223,6 +176,12 @@ function EventRegistrationEntryList({
                 type="button"
                 className="danger-button inline-button"
                 onClick={() => onDeleteEntry(entry.id)}
+                disabled={deleteBlocked}
+                title={
+                  deleteBlocked
+                    ? "Captains cannot delete entries that are already used in fixtures."
+                    : "Delete this entry"
+                }
               >
                 Delete
               </button>
@@ -503,12 +462,16 @@ export default function GamesView({
   onUpdateAssignments,
 }) {
   const [teamFilter, setTeamFilter] = useState("all");
+  const [sportEventGameFilter, setSportEventGameFilter] = useState("all");
+  const [sportEventCategoryFilter, setSportEventCategoryFilter] = useState("all");
+  const [sportEventStatusFilter, setSportEventStatusFilter] = useState("all");
   const [editingGameId, setEditingGameId] = useState("");
   const [editingSportEventId, setEditingSportEventId] = useState("");
   const [gameForm, setGameForm] = useState(() => createEmptyGameForm(teams));
   const [sportEventForm, setSportEventForm] = useState(EMPTY_SPORT_EVENT_FORM);
   const [viewingRulesSportEventId, setViewingRulesSportEventId] = useState("");
   const [selectedSportEventTemplateName, setSelectedSportEventTemplateName] = useState("");
+  const [isSportEventModalOpen, setIsSportEventModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedRegistrationTeamId, setSelectedRegistrationTeamId] = useState("");
   const [registrationPlayerFilter, setRegistrationPlayerFilter] = useState("all");
@@ -526,6 +489,10 @@ export default function GamesView({
   const [sportEventSubmitting, setSportEventSubmitting] = useState(false);
   const [eventTeamSubmitting, setEventTeamSubmitting] = useState(false);
   const [generatorSubmitting, setGeneratorSubmitting] = useState(false);
+  const availableSportsEvents = useMemo(
+    () => sportsEvents.filter((sportEvent) => sportEvent.isActive !== false && sportEvent.status !== "completed"),
+    [sportsEvents],
+  );
 
   const gameTitleOptions = useMemo(() => {
     const titles = new Set(sportsEvents.map((sportEvent) => sportEvent.name));
@@ -536,6 +503,50 @@ export default function GamesView({
     return Array.from(titles);
   }, [database.games, gameForm.title, sportsEvents]);
 
+  const sportEventGameOptions = useMemo(
+    () => Array.from(new Set(sportsEvents.map((sportEvent) => sportEvent.sportType))).sort(),
+    [sportsEvents],
+  );
+
+  const sportEventCategoryOptions = useMemo(
+    () => Array.from(new Set(sportsEvents.map((sportEvent) => sportEvent.eventCategory))).sort(),
+    [sportsEvents],
+  );
+
+  const sportEventStatusOptions = useMemo(
+    () => Array.from(new Set(sportsEvents.map((sportEvent) => sportEvent.status))).sort(),
+    [sportsEvents],
+  );
+
+  const filteredSportEvents = useMemo(
+    () =>
+      sportsEvents.filter((sportEvent) => {
+        if (
+          sportEventGameFilter !== "all" &&
+          sportEvent.sportType !== sportEventGameFilter
+        ) {
+          return false;
+        }
+
+        if (
+          sportEventCategoryFilter !== "all" &&
+          sportEvent.eventCategory !== sportEventCategoryFilter
+        ) {
+          return false;
+        }
+
+        if (
+          sportEventStatusFilter !== "all" &&
+          sportEvent.status !== sportEventStatusFilter
+        ) {
+          return false;
+        }
+
+        return true;
+      }),
+    [sportEventCategoryFilter, sportEventGameFilter, sportEventStatusFilter, sportsEvents],
+  );
+
   useEffect(() => {
     if (!gameForm.teamAId && !gameForm.teamBId && teams.length > 0) {
       setGameForm(createEmptyGameForm(teams));
@@ -543,13 +554,24 @@ export default function GamesView({
   }, [gameForm.teamAId, gameForm.teamBId, teams]);
 
   useEffect(() => {
-    if (!selectedEventId && sportsEvents.length > 0) {
-      setSelectedEventId(sportsEvents[0].id);
+    if (availableSportsEvents.length === 0) {
+      if (selectedEventId) {
+        setSelectedEventId("");
+      }
+      return;
     }
-  }, [selectedEventId, sportsEvents]);
+
+    const selectedEventStillAvailable = availableSportsEvents.some(
+      (sportEvent) => sportEvent.id === selectedEventId,
+    );
+
+    if (!selectedEventStillAvailable) {
+      setSelectedEventId(availableSportsEvents[0].id);
+    }
+  }, [availableSportsEvents, selectedEventId]);
 
   const selectedEvent =
-    sportsEvents.find((sportEvent) => sportEvent.id === selectedEventId) ?? null;
+    availableSportsEvents.find((sportEvent) => sportEvent.id === selectedEventId) ?? null;
 
   useEffect(() => {
     if (role === "captain" && activeCaptain?.teamId) {
@@ -667,6 +689,21 @@ export default function GamesView({
   const visibleEventFixtures = database.eventFixtures
     .filter((fixture) => fixture.sportEventId === selectedEventId)
     .sort((left, right) => left.fixtureNumber - right.fixtureNumber);
+  const protectedEntryIds = new Set(
+    selectedEventEntries
+      .filter((entry) =>
+        visibleEventFixtures.some((fixture) => {
+          const sideAPlayers = fixture.assignments?.A ?? [];
+          const sideBPlayers = fixture.assignments?.B ?? [];
+
+          return (
+            (fixture.sideATeamId === entry.teamId && sameMembers(sideAPlayers, entry.playerIds)) ||
+            (fixture.sideBTeamId === entry.teamId && sameMembers(sideBPlayers, entry.playerIds))
+          );
+        }),
+      )
+      .map((entry) => entry.id),
+  );
   const eventHasGeneratedFixtures = visibleEventFixtures.length > 0;
   const isEditingGame = editingGameId.length > 0;
   const isEditingSportEvent = editingSportEventId.length > 0;
@@ -707,6 +744,15 @@ export default function GamesView({
     setSportEventForm(EMPTY_SPORT_EVENT_FORM);
     setEditingSportEventId("");
     setSelectedSportEventTemplateName("");
+    setIsSportEventModalOpen(false);
+  };
+
+  const handleOpenSportEventModal = () => {
+    setSportEventStatus("");
+    setSportEventForm(EMPTY_SPORT_EVENT_FORM);
+    setEditingSportEventId("");
+    setSelectedSportEventTemplateName("");
+    setIsSportEventModalOpen(true);
   };
 
   const handleSportEventTemplateChange = (templateName) => {
@@ -733,6 +779,8 @@ export default function GamesView({
         selectedTemplate.playersPerSide == null
           ? current.playersPerSide
           : String(selectedTemplate.playersPerSide),
+      isActive: selectedTemplate.isActive ?? true,
+      status: selectedTemplate.status ?? current.status,
     }));
   };
 
@@ -896,11 +944,12 @@ export default function GamesView({
       const payload = {
         name: trimmedName,
         sportType: sportEventForm.sportType.trim(),
-        eventCategory: sportEventForm.eventCategory.trim() || "Open",
+        eventCategory: sportEventForm.eventCategory.trim() || EVENT_CATEGORY_OPTIONS[0] || "Gents",
         venue: sportEventForm.venue.trim() || "TBD",
         rules: sportEventForm.rules.trim(),
         playersPerSide,
         status: sportEventForm.status,
+        isActive: sportEventForm.isActive,
       };
 
       if (isEditingSportEvent) {
@@ -933,6 +982,7 @@ export default function GamesView({
     setEditingSportEventId(sportEvent.id);
     setSelectedSportEventTemplateName("");
     setSportEventForm(createSportEventFormFromEvent(sportEvent));
+    setIsSportEventModalOpen(true);
   };
 
   const handleToggleSportEventRules = (sportEventId) => {
@@ -958,6 +1008,24 @@ export default function GamesView({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [viewingRulesSportEventId]);
+
+  useEffect(() => {
+    if (!isSportEventModalOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        resetSportEventForm();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSportEventModalOpen]);
 
   const handleDeleteSportEvent = async (sportEvent) => {
     const confirmed = window.confirm(
@@ -1182,9 +1250,231 @@ export default function GamesView({
         <section className="panel">
           <SectionTitle
             title="Sport event management"
-            description="Create and manage sport events with sport type, event category, venue, players per side, and registration status."
+            description="Manage the workbook-based games and categories here. Only active items appear in registration and public views."
           />
-          <div className="dashboard-grid">
+          <div className="players-toolbar games-management-toolbar">
+            <label className="field-inline players-filter-field">
+              <span>Game</span>
+              <select
+                value={sportEventGameFilter}
+                onChange={(event) => setSportEventGameFilter(event.target.value)}
+              >
+                <option value="all">All games</option>
+                {sportEventGameOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-inline players-filter-field">
+              <span>Game category</span>
+              <select
+                value={sportEventCategoryFilter}
+                onChange={(event) => setSportEventCategoryFilter(event.target.value)}
+              >
+                <option value="all">All categories</option>
+                {sportEventCategoryOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-inline players-filter-field">
+              <span>Status</span>
+              <select
+                value={sportEventStatusFilter}
+                onChange={(event) => setSportEventStatusFilter(event.target.value)}
+              >
+                <option value="all">All statuses</option>
+                {sportEventStatusOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {formatStatusLabel(option)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleOpenSportEventModal}
+              disabled={sportEventSubmitting}
+            >
+              Add game category
+            </button>
+          </div>
+          {sportEventStatus ? <p className="status-note">{sportEventStatus}</p> : null}
+          <div className="mobile-player-list">
+            {filteredSportEvents.map((sportEvent) => {
+              const eventTeamCount = database.sportEventTeams.filter(
+                (assignment) => assignment.sportEventId === sportEvent.id,
+              ).length;
+              const fixtureCount = database.eventFixtures.filter(
+                (fixture) => fixture.sportEventId === sportEvent.id,
+              ).length;
+
+              return (
+                <article key={sportEvent.id} className="mobile-player-card">
+                  <div className="mobile-player-card-header">
+                    <h4>{sportEvent.name}</h4>
+                    <span className={sportEvent.isActive ? "event-count-pill success" : "event-count-pill warning"}>
+                      {sportEvent.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <p>Game: {sportEvent.sportType}</p>
+                  <p>Category: {sportEvent.eventCategory}</p>
+                  <p>Players per side: {sportEvent.playersPerSide}</p>
+                  <p>Venue: {sportEvent.venue}</p>
+                  <p>Status: {formatStatusLabel(sportEvent.status)}</p>
+                  <p>
+                    {eventTeamCount} event team{eventTeamCount === 1 ? "" : "s"} | {fixtureCount} fixture
+                    {fixtureCount === 1 ? "" : "s"}
+                  </p>
+                  <div className="table-actions">
+                    <button
+                      type="button"
+                      className="ghost-button inline-button icon-button"
+                      onClick={() => handleToggleSportEventRules(sportEvent.id)}
+                      disabled={sportEventSubmitting}
+                      aria-label={`View rules for ${sportEvent.name}`}
+                      title={`View rules for ${sportEvent.name}`}
+                    >
+                      <RulesIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button inline-button"
+                      onClick={() => handleEditSportEvent(sportEvent)}
+                      disabled={sportEventSubmitting}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button inline-button"
+                      onClick={() => handleDeleteSportEvent(sportEvent)}
+                      disabled={sportEventSubmitting}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+            {filteredSportEvents.length === 0 ? (
+              <p className="empty-note">No game categories match the selected filters.</p>
+            ) : null}
+          </div>
+          <div className="table-shell sport-event-table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Game Category</th>
+                  <th>Game</th>
+                  <th>Category</th>
+                  <th>Players / Side</th>
+                  <th className="games-laptop-hide">Venue</th>
+                  <th>Active</th>
+                  <th>Status</th>
+                  <th className="games-laptop-hide">Entries</th>
+                  <th className="games-laptop-hide">Fixtures</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSportEvents.map((sportEvent) => {
+                  const eventTeamCount = database.sportEventTeams.filter(
+                    (assignment) => assignment.sportEventId === sportEvent.id,
+                  ).length;
+                  const fixtureCount = database.eventFixtures.filter(
+                    (fixture) => fixture.sportEventId === sportEvent.id,
+                  ).length;
+
+                  return (
+                    <tr key={sportEvent.id}>
+                      <td>{sportEvent.name}</td>
+                      <td>{sportEvent.sportType}</td>
+                      <td>{sportEvent.eventCategory}</td>
+                      <td>{sportEvent.playersPerSide}</td>
+                      <td className="games-laptop-hide">{sportEvent.venue}</td>
+                      <td>{sportEvent.isActive ? "Active" : "Inactive"}</td>
+                      <td>{formatStatusLabel(sportEvent.status)}</td>
+                      <td className="games-laptop-hide">{eventTeamCount}</td>
+                      <td className="games-laptop-hide">{fixtureCount}</td>
+                      <td className="actions-cell">
+                        <div className="table-actions">
+                          <button
+                            type="button"
+                            className="ghost-button inline-button icon-button"
+                            onClick={() => handleToggleSportEventRules(sportEvent.id)}
+                            disabled={sportEventSubmitting}
+                            aria-label={`View rules for ${sportEvent.name}`}
+                            title={`View rules for ${sportEvent.name}`}
+                          >
+                            <RulesIcon />
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost-button inline-button"
+                            onClick={() => handleEditSportEvent(sportEvent)}
+                            disabled={sportEventSubmitting}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="danger-button inline-button"
+                            onClick={() => handleDeleteSportEvent(sportEvent)}
+                            disabled={sportEventSubmitting}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {filteredSportEvents.length === 0 ? (
+              <p className="empty-note">
+                {sportsEvents.length === 0
+                  ? "No sport events created yet."
+                  : "No game categories match the selected filters."}
+              </p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {role === "admin" && isSportEventModalOpen ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={resetSportEventForm}
+        >
+          <section
+            className="panel sport-event-rules-modal sport-event-editor-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sport-event-editor-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <SectionTitle
+              title={isEditingSportEvent ? "Edit game category" : "Add game category"}
+              description="Use the workbook master template, then adjust the row details if needed."
+              action={
+                <button
+                  type="button"
+                  className="ghost-button inline-button"
+                  onClick={resetSportEventForm}
+                  disabled={sportEventSubmitting}
+                >
+                  Close
+                </button>
+              }
+            />
             <form className="form-panel" onSubmit={handleSportEventSubmit}>
               <label>
                 <span>Master event template</span>
@@ -1202,8 +1492,9 @@ export default function GamesView({
                 </select>
               </label>
               <label>
-                <span>Sport event name</span>
+                <span>Game category</span>
                 <input
+                  id="sport-event-editor-title"
                   value={sportEventForm.name}
                   onChange={(event) =>
                     setSportEventForm((current) => ({
@@ -1211,45 +1502,47 @@ export default function GamesView({
                       name: event.target.value,
                     }))
                   }
-                  placeholder="Enter sport event name"
+                  placeholder="Workbook event category name"
                   disabled={sportEventSubmitting}
                 />
               </label>
-              <label>
-                <span>Sport type</span>
-                <input
-                  list="sport-type-options"
-                  value={sportEventForm.sportType}
-                  onChange={(event) =>
-                    setSportEventForm((current) => ({
-                      ...current,
-                      sportType: event.target.value,
-                    }))
-                  }
-                  placeholder="Singles, doubles, football, team relay"
-                  disabled={sportEventSubmitting}
-                />
-              </label>
+              <div className="split-fields">
+                <label>
+                  <span>Game</span>
+                  <input
+                    list="sport-type-options"
+                    value={sportEventForm.sportType}
+                    onChange={(event) =>
+                      setSportEventForm((current) => ({
+                        ...current,
+                        sportType: event.target.value,
+                      }))
+                    }
+                    placeholder="Foosball, Cricket, Chess"
+                    disabled={sportEventSubmitting}
+                  />
+                </label>
+                <label>
+                  <span>Category</span>
+                  <input
+                    list="event-category-options"
+                    value={sportEventForm.eventCategory}
+                    onChange={(event) =>
+                      setSportEventForm((current) => ({
+                        ...current,
+                        eventCategory: event.target.value,
+                      }))
+                    }
+                    placeholder="Workbook category"
+                    disabled={sportEventSubmitting}
+                  />
+                </label>
+              </div>
               <datalist id="sport-type-options">
                 {SPORTS_EVENT_OPTIONS.map((option) => (
                   <option key={option} value={option} />
                 ))}
               </datalist>
-              <label>
-                <span>Event category</span>
-                <input
-                  list="event-category-options"
-                  value={sportEventForm.eventCategory}
-                  onChange={(event) =>
-                    setSportEventForm((current) => ({
-                      ...current,
-                      eventCategory: event.target.value,
-                    }))
-                  }
-                  placeholder="Girls, Gents, Kids Mixed, Open"
-                  disabled={sportEventSubmitting}
-                />
-              </label>
               <datalist id="event-category-options">
                 {EVENT_CATEGORY_OPTIONS.map((option) => (
                   <option key={option} value={option} />
@@ -1287,6 +1580,42 @@ export default function GamesView({
                   />
                 </label>
               </div>
+              <div className="split-fields">
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={sportEventForm.status}
+                    onChange={(event) =>
+                      setSportEventForm((current) => ({
+                        ...current,
+                        status: event.target.value,
+                      }))
+                    }
+                    disabled={sportEventSubmitting}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="registration_open">Registration open</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </label>
+                <div className="checkbox-field">
+                  <span>Availability</span>
+                  <label className="assignment-row">
+                    <input
+                      type="checkbox"
+                      checked={sportEventForm.isActive}
+                      onChange={(event) =>
+                        setSportEventForm((current) => ({
+                          ...current,
+                          isActive: event.target.checked,
+                        }))
+                      }
+                      disabled={sportEventSubmitting}
+                    />
+                    <span>Show this item in registrations and public pages</span>
+                  </label>
+                </div>
+              </div>
               <label>
                 <span>Game rules</span>
                 <textarea
@@ -1302,23 +1631,6 @@ export default function GamesView({
                   disabled={sportEventSubmitting}
                 />
               </label>
-              <label>
-                <span>Status</span>
-                <select
-                  value={sportEventForm.status}
-                  onChange={(event) =>
-                    setSportEventForm((current) => ({
-                      ...current,
-                      status: event.target.value,
-                    }))
-                  }
-                  disabled={sportEventSubmitting}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="registration_open">Registration open</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </label>
               {sportEventStatus ? <p className="status-note">{sportEventStatus}</p> : null}
               <div className="form-actions">
                 <button
@@ -1329,83 +1641,21 @@ export default function GamesView({
                   {sportEventSubmitting
                     ? "Saving..."
                     : isEditingSportEvent
-                      ? "Update sport event"
-                      : "Add sport event"}
+                      ? "Update game category"
+                      : "Add game category"}
                 </button>
-                {isEditingSportEvent ? (
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={resetSportEventForm}
-                    disabled={sportEventSubmitting}
-                  >
-                    Cancel edit
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={resetSportEventForm}
+                  disabled={sportEventSubmitting}
+                >
+                  Cancel
+                </button>
               </div>
             </form>
-
-            <div className="overview-list sport-event-management-list">
-              {sportsEvents.map((sportEvent) => {
-                const eventTeamCount = database.sportEventTeams.filter(
-                  (assignment) => assignment.sportEventId === sportEvent.id,
-                ).length;
-                const fixtureCount = database.eventFixtures.filter(
-                  (fixture) => fixture.sportEventId === sportEvent.id,
-                ).length;
-
-                return (
-                  <article key={sportEvent.id} className="overview-item">
-                    <div>
-                      <h4>{sportEvent.name}</h4>
-                      <p>
-                        {sportEvent.sportType} | {sportEvent.eventCategory} | {sportEvent.playersPerSide} per side
-                      </p>
-                      <p>
-                        {sportEvent.venue} | {formatStatusLabel(sportEvent.status)}
-                      </p>
-                      <p>
-                        {eventTeamCount} event team{eventTeamCount === 1 ? "" : "s"} | {fixtureCount} fixture
-                        {fixtureCount === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                    <div className="table-actions">
-                      <button
-                        type="button"
-                        className="ghost-button inline-button icon-button"
-                        onClick={() => handleToggleSportEventRules(sportEvent.id)}
-                        disabled={sportEventSubmitting}
-                        aria-label={`View rules for ${sportEvent.name}`}
-                        title={`View rules for ${sportEvent.name}`}
-                      >
-                        <RulesIcon />
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost-button inline-button"
-                        onClick={() => handleEditSportEvent(sportEvent)}
-                        disabled={sportEventSubmitting}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="danger-button inline-button"
-                        onClick={() => handleDeleteSportEvent(sportEvent)}
-                        disabled={sportEventSubmitting}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-              {sportsEvents.length === 0 ? (
-                <p className="empty-note">No sport events created yet.</p>
-              ) : null}
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
       ) : null}
 
       {viewingRulesSportEvent ? (
@@ -1446,192 +1696,6 @@ export default function GamesView({
         </div>
       ) : null}
 
-      <section className="panel">
-        <SectionTitle
-          title="Event player registrations"
-          description="Choose a sport event and one team, then keep adding entries using the exact player count set for that event."
-        />
-        <div className="dashboard-grid">
-          <div className="form-panel">
-            <label>
-              <span>Sport event</span>
-              <select
-                value={selectedEventId}
-                onChange={(event) => setSelectedEventId(event.target.value)}
-              >
-                <option value="">Select sport event</option>
-                {sportsEvents.map((sportEvent) => (
-                  <option key={sportEvent.id} value={sportEvent.id}>
-                    {sportEvent.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {selectedEvent ? (
-              <div className="event-meta-strip">
-                <span>{selectedEvent.sportType}</span>
-                <span>{selectedEvent.eventCategory}</span>
-                <span>{selectedEvent.playersPerSide} per side</span>
-                <span>{selectedEvent.venue}</span>
-                <span>{formatStatusLabel(selectedEvent.status)}</span>
-              </div>
-            ) : null}
-
-            <label>
-              <span>Team</span>
-              <select
-                value={selectedRegistrationTeamId}
-                onChange={(event) => setSelectedRegistrationTeamId(event.target.value)}
-              >
-                <option value="">Select team</option>
-                {availableRegistrationTeams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="registration-summary-card">
-              <span className="eyebrow">Current entry</span>
-              <p>
-                {draftPlayers.length > 0
-                  ? draftPlayers.map((player) => player.name).join(", ")
-                  : "No players selected yet"}
-              </p>
-              {selectedEvent ? (
-                <small>
-                  Add exactly {selectedEvent.playersPerSide} player
-                  {selectedEvent.playersPerSide === 1 ? "" : "s"} each time for this event.
-                </small>
-              ) : null}
-            </div>
-
-            <div className="form-actions">
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handleAddRegistrationEntry}
-                disabled={
-                  !selectedEventId ||
-                  !selectedRegistrationTeamId ||
-                  eventHasGeneratedFixtures
-                }
-              >
-                {getEntryButtonLabel(selectedEvent?.playersPerSide ?? 1)}
-              </button>
-            </div>
-
-            {registrationStatus ? <p className="status-note">{registrationStatus}</p> : null}
-          </div>
-
-          <div className="assignment-column">
-            <div className="assignment-header">
-              <div>
-                <h5>{registrationTeam?.name ?? "Choose a team"}</h5>
-                <p className="assignment-subtitle">
-                  {selectedEvent
-                    ? `${registrationEntries.length} saved entr${registrationEntries.length === 1 ? "y" : "ies"}`
-                    : "Choose a sport event first"}
-                </p>
-              </div>
-              <label className="players-filter-field registration-roster-filter">
-                <span>Players</span>
-                <select
-                  value={registrationPlayerFilter}
-                  onChange={(event) => setRegistrationPlayerFilter(event.target.value)}
-                  disabled={!selectedEvent || !registrationTeam}
-                >
-                  <option value="all">Show all</option>
-                  <option value="interested">Interested only</option>
-                </select>
-              </label>
-            </div>
-            <div className="assignment-list">
-              {visibleRegistrationTeamPlayers.map((player) => {
-                const selected = registrationDraftPlayerIds.includes(player.id);
-                const alreadyUsed = registeredPlayerIdsForTeam.has(player.id);
-                const disableUnchecked =
-                  !selected &&
-                  (alreadyUsed ||
-                    eventHasGeneratedFixtures ||
-                    (selectedEvent?.playersPerSide
-                      ? registrationDraftPlayerIds.length >= selectedEvent.playersPerSide
-                      : false));
-
-                return (
-                  <label
-                    key={player.id}
-                    className={selected ? "assignment-row selected" : "assignment-row"}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => handleToggleDraftPlayer(player.id)}
-                      disabled={disableUnchecked}
-                    />
-                    <span>{player.name}</span>
-                    <small>
-                      {player.category} | Villa {player.villaNumber}
-                      {alreadyUsed ? " | Already added" : ""}
-                    </small>
-                  </label>
-                );
-              })}
-              {visibleRegistrationTeamPlayers.length === 0 ? (
-                <p className="empty-note">
-                  {registrationTeamPlayers.length === 0
-                    ? "No players added to this team yet."
-                    : eligibleRegistrationTeamPlayers.length === 0
-                      ? "No players in this team match the selected event category."
-                      : "No matching players from this category have submitted interest for this event."}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        <div className="game-stack">
-          <section className="panel">
-            <SectionTitle
-              title="Saved team entries"
-              description="Each saved row is one registration entry for this sport event. Names are shown comma-separated."
-            />
-            <EventRegistrationEntryList
-              entries={selectedEventEntries}
-              playersById={playersById}
-              teamsById={teamsById}
-              onDeleteEntry={handleDeleteRegistrationEntry}
-            />
-            {role === "admin" ? (
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={handleGenerateFixtures}
-                  disabled={!selectedEvent || generatorSubmitting || selectedEventEntries.length < 2}
-                >
-                  {generatorSubmitting ? "Creating fixtures..." : "Create fixtures"}
-                </button>
-              </div>
-            ) : null}
-            {eventHasGeneratedFixtures ? (
-              <p className="status-note">
-                Fixtures are already created for this event. Delete all saved entries to reset and create again.
-              </p>
-            ) : null}
-          </section>
-
-          {visibleEventFixtures.length > 0 ? (
-            <section className="panel">
-              <p className="status-note">
-                Fixtures are generated. Open the Fixtures menu to view the full list and manage scheduling.
-              </p>
-            </section>
-          ) : null}
-        </div>
-      </section>
     </section>
   );
 }

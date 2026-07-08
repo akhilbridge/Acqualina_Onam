@@ -60,8 +60,10 @@ export default function PlayersView({
   const defaultTeamId = activeCaptain?.teamId ?? teams[0]?.id ?? "";
   const [form, setForm] = useState(() => createEmptyForm(defaultTeamId));
   const [editingPlayerId, setEditingPlayerId] = useState("");
+  const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [teamFilter, setTeamFilter] = useState(activeCaptain?.teamId ?? "all");
+  const [pageStatus, setPageStatus] = useState("");
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -92,6 +94,19 @@ export default function PlayersView({
     setEditingPlayerId("");
   };
 
+  const handleOpenPlayerModal = () => {
+    setPageStatus("");
+    setStatus("");
+    resetForm(defaultTeamId);
+    setIsPlayerModalOpen(true);
+  };
+
+  const handleClosePlayerModal = () => {
+    setStatus("");
+    resetForm(defaultTeamId);
+    setIsPlayerModalOpen(false);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -118,8 +133,11 @@ export default function PlayersView({
           category: form.category,
           teamId: targetTeamId,
         });
+        const savedPlayerName = form.name.trim();
         resetForm(targetTeamId);
         setStatus("Player updated successfully.");
+        setPageStatus(`${savedPlayerName} updated successfully.`);
+        setIsPlayerModalOpen(false);
       } else {
         await onAddPlayer({
           name: form.name.trim(),
@@ -127,8 +145,11 @@ export default function PlayersView({
           category: form.category,
           teamId: targetTeamId,
         });
+        const savedPlayerName = form.name.trim();
         resetForm(targetTeamId);
         setStatus("Player added successfully.");
+        setPageStatus(`${savedPlayerName} added successfully.`);
+        setIsPlayerModalOpen(false);
       }
     } catch (playerError) {
       setStatus(playerError.message ?? "Player save failed.");
@@ -145,11 +166,12 @@ export default function PlayersView({
     setStatus("");
     setEditingPlayerId(player.id);
     setForm(createFormFromPlayer(player));
+    setIsPlayerModalOpen(true);
   };
 
   const handleCancelEdit = () => {
     setStatus("");
-    resetForm(defaultTeamId);
+    handleClosePlayerModal();
   };
 
   const handleDelete = async (player) => {
@@ -171,12 +193,31 @@ export default function PlayersView({
         resetForm(defaultTeamId);
       }
       setStatus("Player deleted successfully.");
+      setPageStatus(`${player.name} deleted successfully.`);
     } catch (playerError) {
       setStatus(playerError.message ?? "Player delete failed.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!isPlayerModalOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        handleClosePlayerModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPlayerModalOpen]);
 
   return (
     <section className="view-stack">
@@ -185,6 +226,16 @@ export default function PlayersView({
         description="Store each player with name, villa number, category, and team."
         action={
           <div className="players-toolbar">
+            {canManagePlayers ? (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleOpenPlayerModal}
+                disabled={submitting}
+              >
+                Add player
+              </button>
+            ) : null}
             {role === "admin" ? (
               <label className="field-inline players-filter-field">
                 <span>Team</span>
@@ -212,17 +263,36 @@ export default function PlayersView({
           </div>
         }
       />
+      {pageStatus ? <p className="status-note">{pageStatus}</p> : null}
 
-      <div className="dashboard-grid players-layout">
-        {canManagePlayers ? (
-          <form className="panel form-panel" onSubmit={handleSubmit}>
+      {canManagePlayers && isPlayerModalOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={handleClosePlayerModal}>
+          <form
+            className="panel form-panel sport-event-editor-modal"
+            onSubmit={handleSubmit}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="player-editor-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <SectionTitle
               title={isEditing ? "Edit player details" : "Add player to any team"}
               description="Only admins can add, edit, and delete player records."
+              action={
+                <button
+                  type="button"
+                  className="ghost-button inline-button"
+                  onClick={handleClosePlayerModal}
+                  disabled={submitting}
+                >
+                  Close
+                </button>
+              }
             />
             <label>
               <span>Player name</span>
               <input
+                id="player-editor-title"
                 value={form.name}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, name: event.target.value }))
@@ -285,31 +355,33 @@ export default function PlayersView({
               <button type="submit" className="primary-button" disabled={submitting}>
                 {submitting ? "Saving..." : isEditing ? "Update player" : "Save player"}
               </button>
-              {isEditing ? (
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={handleCancelEdit}
-                  disabled={submitting}
-                >
-                  Cancel edit
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleCancelEdit}
+                disabled={submitting}
+              >
+                {isEditing ? "Cancel edit" : "Cancel"}
+              </button>
             </div>
           </form>
-        ) : (
-          <section className="panel">
-            <SectionTitle
-              title="Player roster"
-              description="Only admins can add, edit, and delete roster entries."
-            />
-            <p className="muted">
-              Your current role can view roster information but cannot change player
-              records.
-            </p>
-          </section>
-        )}
+        </div>
+      ) : null}
 
+      {!canManagePlayers ? (
+        <section className="panel">
+          <SectionTitle
+            title="Player roster"
+            description="Only admins can add, edit, and delete roster entries."
+          />
+          <p className="muted">
+            Your current role can view roster information but cannot change player
+            records.
+          </p>
+        </section>
+      ) : null}
+
+      <div className="dashboard-grid players-layout">
         <section className="panel player-roster-panel">
           <SectionTitle
             title="Team roster"

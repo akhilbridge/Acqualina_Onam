@@ -4,4 +4,7 @@ export {
   SPORT_TYPE_OPTIONS as SPORTS_EVENT_OPTIONS,
   EVENT_CATEGORY_OPTIONS,
   normalizePlayerCategory,
+  normalizeEventCategory,
+  isPlayerEligibleForEvent,
+  getPlayersPerSideForEvent,
 } from "./masterData";

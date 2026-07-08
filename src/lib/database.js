@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { getSupabaseClient, hasSupabaseConfig } from "./supabase";
-import { normalizePlayerCategory } from "../data/seed";
+import {
+  getPlayersPerSideForEvent,
+  normalizeEventCategory,
+  normalizePlayerCategory,
+} from "../data/seed";
 
 const EMPTY_DATABASE = {
   users: [],
@@ -133,11 +137,14 @@ function mapSupabaseDatabase({
     id: sportEvent.id,
     name: sportEvent.name,
     sportType: sportEvent.sport_type ?? "General",
-    eventCategory: sportEvent.event_category ?? "Open",
+    eventCategory: normalizeEventCategory(sportEvent.event_category ?? "Open"),
     venue: sportEvent.venue ?? "TBD",
     rules: sportEvent.rules ?? "",
-    playersPerSide: sportEvent.players_per_side ?? 1,
+    playersPerSide:
+      sportEvent.players_per_side ??
+      getPlayersPerSideForEvent(sportEvent.sport_type ?? sportEvent.name),
     status: sportEvent.status ?? "draft",
+    isActive: sportEvent.is_active ?? true,
     createdAt: sportEvent.created_at,
     updatedAt: sportEvent.updated_at ?? sportEvent.created_at,
   }));
@@ -440,6 +447,31 @@ function mapEdgeFunctionError(functionError, data, functionName = "Edge Function
   return functionError.message;
 }
 
+function sameMembers(left, right) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const leftSorted = [...left].sort();
+  const rightSorted = [...right].sort();
+
+  return leftSorted.every((value, index) => value === rightSorted[index]);
+}
+
+function isSportEventEntryUsedInFixture(database, entry) {
+  return database.eventFixtures
+    .filter((fixture) => fixture.sportEventId === entry.sportEventId)
+    .some((fixture) => {
+      const sideAPlayers = fixture.assignments?.A ?? [];
+      const sideBPlayers = fixture.assignments?.B ?? [];
+
+      return (
+        (fixture.sideATeamId === entry.teamId && sameMembers(sideAPlayers, entry.playerIds)) ||
+        (fixture.sideBTeamId === entry.teamId && sameMembers(sideBPlayers, entry.playerIds))
+      );
+    });
+}
+
 export function useAuthSession() {
   const supabase = getSupabaseClient();
   const configured = hasSupabaseConfig();
@@ -565,7 +597,8 @@ export function usePublicInterestRegistration() {
         .order("name"),
       supabase
         .from("sports_events")
-        .select("id, name, sport_type, event_category, players_per_side, status, venue")
+        .select("id, name, sport_type, event_category, players_per_side, status, venue, is_active")
+        .eq("is_active", true)
         .neq("status", "completed")
         .order("name"),
     ]);
@@ -603,10 +636,13 @@ export function usePublicInterestRegistration() {
         id: sportEvent.id,
         name: sportEvent.name,
         sportType: sportEvent.sport_type ?? "General",
-        eventCategory: sportEvent.event_category ?? "Open",
-        playersPerSide: sportEvent.players_per_side ?? 1,
+        eventCategory: normalizeEventCategory(sportEvent.event_category ?? "Open"),
+        playersPerSide:
+          sportEvent.players_per_side ??
+          getPlayersPerSideForEvent(sportEvent.sport_type ?? sportEvent.name),
         status: sportEvent.status ?? "draft",
         venue: sportEvent.venue ?? "TBD",
+        isActive: sportEvent.is_active ?? true,
       })),
     );
     setError("");
@@ -750,8 +786,10 @@ export function usePublicInterestRegistration() {
         id: row.sport_event_id,
         name: row.sport_event_name,
         sportType: row.sport_type ?? "General",
-        eventCategory: row.event_category ?? "Open",
-        playersPerSide: row.players_per_side ?? 1,
+        eventCategory: normalizeEventCategory(row.event_category ?? "Open"),
+        playersPerSide:
+          row.players_per_side ??
+          getPlayersPerSideForEvent(row.sport_type ?? row.sport_event_name),
       });
     });
 
@@ -768,6 +806,202 @@ export function usePublicInterestRegistration() {
     appSettings,
     submitInterest,
     getPlayerInterestSubmissions,
+    refresh,
+  };
+}
+
+export function usePublicFestivalDashboard() {
+  const supabase = getSupabaseClient();
+  const configured = hasSupabaseConfig();
+  const [loading, setLoading] = useState(configured);
+  const [error, setError] = useState("");
+  const [teams, setTeams] = useState([]);
+  const [players, setPlayers] = useState([]);
+  const [sportsEvents, setSportsEvents] = useState([]);
+  const [games, setGames] = useState([]);
+  const [eventFixtures, setEventFixtures] = useState([]);
+
+  const refresh = async () => {
+    if (!supabase) {
+      setTeams([]);
+      setPlayers([]);
+      setSportsEvents([]);
+      setGames([]);
+      setEventFixtures([]);
+      setError("Supabase is not configured.");
+      return;
+    }
+
+    const [
+      teamsResponse,
+      playersResponse,
+      sportsEventsResponse,
+      gamesResponse,
+      fixturesResponse,
+      fixturePlayersResponse,
+    ] = await Promise.all([
+      supabase.from("teams").select("id, name").order("name"),
+      supabase
+        .from("players")
+        .select("id, name, villa_number, category, team_id")
+        .order("name"),
+      supabase
+        .from("sports_events")
+        .select("id, name, sport_type, event_category, venue, rules, players_per_side, status, is_active")
+        .eq("is_active", true)
+        .order("name"),
+      supabase
+        .from("games")
+        .select("id, title, fixture_label, venue, game_date, scheduled_start_at, scheduled_end_at, status, result_summary, winner_team_id, team_a_id, team_b_id, notes")
+        .order("game_date", { ascending: false, nullsFirst: false })
+        .order("scheduled_start_at", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("fixtures")
+        .select("id, sport_event_id, fixture_number, label, fixture_date, fixture_time, venue, status, winner_team_id, side_a_team_id, side_b_team_id, notes")
+        .order("fixture_date", { ascending: true, nullsFirst: false })
+        .order("fixture_time", { ascending: true, nullsFirst: false })
+        .order("fixture_number"),
+      supabase.from("fixture_players").select("fixture_id, team_id, player_id, side"),
+    ]);
+
+    const publicError =
+      teamsResponse.error ||
+      playersResponse.error ||
+      sportsEventsResponse.error ||
+      gamesResponse.error ||
+      fixturesResponse.error ||
+      fixturePlayersResponse.error;
+    if (publicError) {
+      throw publicError;
+    }
+
+    const nextTeams = (teamsResponse.data ?? []).map((team) => ({
+      id: team.id,
+      name: team.name,
+    }));
+    const nextPlayers = (playersResponse.data ?? []).map((player) => ({
+      id: player.id,
+      name: player.name,
+      villaNumber: player.villa_number,
+      category: normalizePlayerCategory(player.category),
+      teamId: player.team_id,
+    }));
+    const nextSportsEvents = (sportsEventsResponse.data ?? []).map((sportEvent) => ({
+      id: sportEvent.id,
+      name: sportEvent.name,
+      sportType: sportEvent.sport_type ?? "General",
+      eventCategory: normalizeEventCategory(sportEvent.event_category ?? "Open"),
+      venue: sportEvent.venue ?? "TBD",
+      rules: sportEvent.rules ?? "",
+      playersPerSide:
+        sportEvent.players_per_side ??
+        getPlayersPerSideForEvent(sportEvent.sport_type ?? sportEvent.name),
+      status: sportEvent.status ?? "draft",
+      isActive: sportEvent.is_active ?? true,
+    }));
+    const nextGames = (gamesResponse.data ?? []).map((game) => ({
+      id: game.id,
+      title: game.title,
+      fixtureLabel: game.fixture_label ?? "",
+      venue: game.venue ?? "TBD",
+      date: game.game_date ?? "",
+      scheduledStartAt: game.scheduled_start_at ?? "",
+      scheduledEndAt: game.scheduled_end_at ?? "",
+      status: game.status ?? "scheduled",
+      resultSummary: game.result_summary ?? "",
+      winnerTeamId: game.winner_team_id ?? null,
+      teamAId: game.team_a_id,
+      teamBId: game.team_b_id,
+      notes: game.notes ?? "",
+    }));
+    const nextEventFixtures = (fixturesResponse.data ?? []).map((fixture) => ({
+      id: fixture.id,
+      sportEventId: fixture.sport_event_id,
+      fixtureNumber: fixture.fixture_number ?? 0,
+      label: fixture.label ?? "",
+      fixtureDate: fixture.fixture_date ?? "",
+      fixtureTime:
+        typeof fixture.fixture_time === "string" ? fixture.fixture_time.slice(0, 5) : "",
+      venue: fixture.venue ?? "TBD",
+      status: fixture.status ?? "draft",
+      winnerTeamId: fixture.winner_team_id ?? null,
+      sideATeamId: fixture.side_a_team_id ?? null,
+      sideBTeamId: fixture.side_b_team_id ?? null,
+      notes: fixture.notes ?? "",
+      assignments: {
+        A: [],
+        B: [],
+      },
+    }));
+
+    const eventFixturesById = new Map(nextEventFixtures.map((fixture) => [fixture.id, fixture]));
+    (fixturePlayersResponse.data ?? []).forEach((row) => {
+      const targetFixture = eventFixturesById.get(row.fixture_id);
+      if (!targetFixture) {
+        return;
+      }
+
+      if (!targetFixture.assignments[row.side]) {
+        targetFixture.assignments[row.side] = [];
+      }
+      targetFixture.assignments[row.side].push(row.player_id);
+
+      if (!targetFixture.assignments[row.team_id]) {
+        targetFixture.assignments[row.team_id] = [];
+      }
+      targetFixture.assignments[row.team_id].push(row.player_id);
+    });
+
+    setTeams(nextTeams);
+    setPlayers(nextPlayers);
+    setSportsEvents(nextSportsEvents);
+    setGames(nextGames);
+    setEventFixtures(nextEventFixtures);
+    setError("");
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPublicData() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        await refresh();
+      } catch (loadError) {
+        if (!active) {
+          return;
+        }
+
+        setError(loadError.message ?? "The public festival board could not be loaded.");
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadPublicData();
+
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
+
+  return {
+    configured,
+    loading,
+    error,
+    teams,
+    players,
+    sportsEvents,
+    games,
+    eventFixtures,
     refresh,
   };
 }
@@ -1083,11 +1317,12 @@ export function useAppDatabase(userId) {
     const { error: sportEventError } = await supabase.from("sports_events").insert({
       name: sportEvent.name,
       sport_type: sportEvent.sportType,
-      event_category: sportEvent.eventCategory || "Open",
+      event_category: normalizeEventCategory(sportEvent.eventCategory || "Open"),
       venue: sportEvent.venue,
       rules: sportEvent.rules || "",
       players_per_side: sportEvent.playersPerSide,
       status: sportEvent.status,
+      is_active: sportEvent.isActive ?? true,
     });
 
     if (sportEventError) {
@@ -1107,11 +1342,12 @@ export function useAppDatabase(userId) {
       .update({
         name: sportEvent.name,
         sport_type: sportEvent.sportType,
-        event_category: sportEvent.eventCategory || "Open",
+        event_category: normalizeEventCategory(sportEvent.eventCategory || "Open"),
         venue: sportEvent.venue,
         rules: sportEvent.rules || "",
         players_per_side: sportEvent.playersPerSide,
         status: sportEvent.status,
+        is_active: sportEvent.isActive ?? true,
       })
       .eq("id", sportEvent.id);
 
@@ -1632,6 +1868,11 @@ export function useAppDatabase(userId) {
     const entry = database.sportEventEntries.find((item) => item.id === entryId);
     if (!entry) {
       throw new Error("The selected registration entry was not found.");
+    }
+
+    const viewerRole = viewerProfile?.role ?? "";
+    if (viewerRole === "captain" && isSportEventEntryUsedInFixture(database, entry)) {
+      throw new Error("Captains cannot delete entries that are already used in fixtures.");
     }
 
     const { error: deleteEntryError } = await supabase

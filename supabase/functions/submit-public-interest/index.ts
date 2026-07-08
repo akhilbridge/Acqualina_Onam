@@ -23,61 +23,65 @@ function normalizeCategory(category: string) {
   const normalized = normalizeText(category).toLowerCase();
 
   if (normalized === "mens" || normalized === "men" || normalized === "gents") {
-    return "gents";
+    return "Gents";
   }
 
   if (normalized === "ladies" || normalized === "women") {
-    return "ladies";
+    return "Ladies";
   }
 
-  if (normalized === "boys" || normalized === "jr boys" || normalized === "jr. boys") {
-    return "boys";
+  if (
+    normalized === "jr boys" ||
+    normalized === "jr. boys" ||
+    normalized === "jrboys" ||
+    normalized === "boys 6-9 yrs" ||
+    normalized === "boys 6 to 9 yrs" ||
+    normalized === "boys 6-9"
+  ) {
+    return "Boys 6-9 yrs";
   }
 
-  if (normalized === "girls" || normalized === "jr girls" || normalized === "jr. girls") {
-    return "girls";
+  if (
+    normalized === "jr girls" ||
+    normalized === "jr. girls" ||
+    normalized === "jrgirls" ||
+    normalized === "girls 6-9 yrs" ||
+    normalized === "girls 6 to 9 yrs" ||
+    normalized === "girls 6-9"
+  ) {
+    return "Girls 6-9 yrs";
   }
 
-  return normalized;
+  if (
+    normalized === "boys" ||
+    normalized === "boys 10-15 yrs" ||
+    normalized === "boys 10 to 15 yrs" ||
+    normalized === "boys 10-15"
+  ) {
+    return "Boys 10-15 yrs";
+  }
+
+  if (
+    normalized === "girls" ||
+    normalized === "girls 10-15 yrs" ||
+    normalized === "girls 10 to 15 yrs" ||
+    normalized === "girls 10-15"
+  ) {
+    return "Girls 10-15 yrs";
+  }
+
+  return normalizeText(category);
 }
 
 function isEligibleForEvent(playerCategory: string, eventCategory: string) {
   const normalizedPlayerCategory = normalizeCategory(playerCategory);
-  const normalizedEventCategory = normalizeText(eventCategory).toLowerCase();
+  const normalizedEventCategory = normalizeCategory(eventCategory);
 
-  if (!normalizedEventCategory || normalizedEventCategory === "open") {
+  if (!normalizedEventCategory || normalizedEventCategory.toLowerCase() === "open") {
     return true;
   }
 
-  if (normalizedEventCategory.includes("kids mixed")) {
-    return normalizedPlayerCategory === "boys" || normalizedPlayerCategory === "girls";
-  }
-
-  if (normalizedEventCategory.includes("kids")) {
-    return normalizedPlayerCategory === "boys" || normalizedPlayerCategory === "girls";
-  }
-
-  if (normalizedEventCategory.includes("adults")) {
-    return normalizedPlayerCategory === "gents" || normalizedPlayerCategory === "ladies";
-  }
-
-  if (normalizedEventCategory.includes("gents")) {
-    return normalizedPlayerCategory === "gents";
-  }
-
-  if (normalizedEventCategory.includes("ladies")) {
-    return normalizedPlayerCategory === "ladies";
-  }
-
-  if (normalizedEventCategory.includes("boys")) {
-    return normalizedPlayerCategory === "boys";
-  }
-
-  if (normalizedEventCategory.includes("girls")) {
-    return normalizedPlayerCategory === "girls";
-  }
-
-  return true;
+  return normalizedPlayerCategory === normalizedEventCategory;
 }
 
 function getRequestIp(request: Request) {
@@ -168,7 +172,7 @@ Deno.serve(async (request) => {
 
     const { data: sportEvents, error: sportEventsError } = await adminClient
       .from("sports_events")
-      .select("id, name, event_category, status")
+      .select("id, name, event_category, status, is_active")
       .in("id", sportEventIds);
 
     if (sportEventsError) {
@@ -180,6 +184,10 @@ Deno.serve(async (request) => {
     }
 
     const invalidEvent = (sportEvents ?? []).find((sportEvent) => {
+      if (sportEvent.is_active === false) {
+        return true;
+      }
+
       if (sportEvent.status === "completed") {
         return true;
       }

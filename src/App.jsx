@@ -10,6 +10,7 @@ import FixturesView from "./features/fixtures/FixturesView";
 import InterestsView from "./features/interests/InterestsView";
 import SettingsView from "./features/settings/SettingsView";
 import LoginView from "./features/auth/LoginView";
+import PublicFestivalView from "./features/public/PublicFestivalView";
 import PublicRegistrationView from "./features/public/PublicRegistrationView";
 import { useAppDatabase, useAuthSession } from "./lib/database";
 
@@ -60,6 +61,7 @@ export default function App() {
       ? window.location.pathname.replace(/\/+$/, "") || "/"
       : "/";
   const isPublicRegistrationRoute = pathname === "/register";
+  const isPublicFestivalRoute = pathname === "/public" || pathname === "/festival";
   const [currentView, setCurrentView] = useState("dashboard");
   const [forcedLogoutNotice, setForcedLogoutNotice] = useState("");
   const [reauthenticating, setReauthenticating] = useState(false);
@@ -157,6 +159,10 @@ export default function App() {
 
   if (isPublicRegistrationRoute) {
     return <PublicRegistrationView />;
+  }
+
+  if (isPublicFestivalRoute) {
+    return <PublicFestivalView />;
   }
 
   if (!configured) {
@@ -344,6 +350,26 @@ export default function App() {
     );
   }
 
+  if (currentView === "event-registrations" && ["admin", "captain"].includes(role)) {
+    content = (
+      <FixturesView
+        database={database}
+        teams={database.teams}
+        sportsEvents={database.sportsEvents}
+        role={role}
+        activeCaptain={activeCaptain}
+        onCreateSportEventEntry={handleCreateSportEventEntry}
+        onDeleteSportEventEntry={handleDeleteSportEventEntry}
+        onGenerateFixturesFromAi={handleGenerateFixturesFromAi}
+        onCreateEventFixture={handleCreateEventFixture}
+        onUpdateEventFixture={handleUpdateEventFixture}
+        onDeleteEventFixture={handleDeleteEventFixture}
+        viewMode="registrations"
+        onBackToFixtures={() => startTransition(() => setCurrentView("fixtures"))}
+      />
+    );
+  }
+
   if (currentView === "fixtures") {
     content = (
       <FixturesView
@@ -352,9 +378,14 @@ export default function App() {
         sportsEvents={database.sportsEvents}
         role={role}
         activeCaptain={activeCaptain}
+        onCreateSportEventEntry={handleCreateSportEventEntry}
+        onDeleteSportEventEntry={handleDeleteSportEventEntry}
+        onGenerateFixturesFromAi={handleGenerateFixturesFromAi}
         onCreateEventFixture={handleCreateEventFixture}
         onUpdateEventFixture={handleUpdateEventFixture}
         onDeleteEventFixture={handleDeleteEventFixture}
+        viewMode="fixtures"
+        onOpenRegistrations={() => startTransition(() => setCurrentView("event-registrations"))}
       />
     );
   }

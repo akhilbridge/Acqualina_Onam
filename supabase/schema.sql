@@ -73,7 +73,7 @@ create table if not exists public.players (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   villa_number text not null,
-  category text not null check (category in ('Jr Girls', 'Jr Boys', 'Girls', 'Boys', 'Ladies', 'Gents')),
+  category text not null check (category in ('Gents', 'Ladies', 'Boys 6-9 yrs', 'Girls 6-9 yrs', 'Boys 10-15 yrs', 'Girls 10-15 yrs')),
   team_id uuid not null references public.teams(id) on delete cascade,
   created_at timestamptz not null default timezone('utc', now())
 );
@@ -87,22 +87,64 @@ create table if not exists public.sports_events (
   rules text not null default '',
   players_per_side integer not null default 1 check (players_per_side between 1 and 50),
   status public.sport_event_status not null default 'draft',
+  is_active boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
 
-insert into public.sports_events (name)
-values
-  ('Chess'),
-  ('Cricket'),
-  ('Football'),
-  ('Carroms'),
-  ('Cards'),
-  ('Badminton'),
-  ('Volleyball'),
-  ('Tug of War'),
-  ('Table Tennis'),
-  ('Kabaddi')
+with event_definitions(event_name, players_per_side) as (
+  values
+    ('Foosball', 2),
+    ('Carroms Singles', 1),
+    ('Carroms Doubles', 2),
+    ('Carroms Mixed', 2),
+    ('Chess', 1),
+    ('TT Singles', 1),
+    ('TT Doubles', 2),
+    ('TT Mixed', 2),
+    ('Badminton Singles', 1),
+    ('Badminton Doubles', 2),
+    ('Badminton Mixed', 2),
+    ('Pickleball Singles', 1),
+    ('Pickleball Doubles', 2),
+    ('Football', 5),
+    ('Cricket', 11),
+    ('Basketball', 5),
+    ('Swimming', 1),
+    ('Crads 28', 1),
+    ('Crads 56', 1),
+    ('Crads Rummy', 1)
+),
+category_definitions(category_name) as (
+  values
+    ('Gents'),
+    ('Ladies'),
+    ('Boys 6-9 yrs'),
+    ('Girls 6-9 yrs'),
+    ('Boys 10-15 yrs'),
+    ('Girls 10-15 yrs')
+)
+insert into public.sports_events (
+  name,
+  sport_type,
+  event_category,
+  venue,
+  rules,
+  players_per_side,
+  status,
+  is_active
+)
+select
+  event_name || ' - ' || category_name as name,
+  event_name as sport_type,
+  category_name as event_category,
+  'TBD' as venue,
+  '' as rules,
+  players_per_side,
+  'registration_open'::public.sport_event_status as status,
+  true as is_active
+from event_definitions
+cross join category_definitions
 on conflict (name) do nothing;
 
 create table if not exists public.games (
@@ -242,6 +284,7 @@ create index if not exists profiles_role_idx on public.profiles (role);
 create index if not exists players_team_id_idx on public.players (team_id);
 create index if not exists sports_events_name_idx on public.sports_events (name);
 create index if not exists sports_events_status_idx on public.sports_events (status);
+create index if not exists sports_events_is_active_idx on public.sports_events (is_active);
 create index if not exists sports_events_sport_type_idx on public.sports_events (sport_type);
 create index if not exists sports_events_event_category_idx on public.sports_events (event_category);
 create index if not exists games_team_a_id_idx on public.games (team_a_id);
@@ -425,6 +468,13 @@ for select
 to authenticated
 using (true);
 
+drop policy if exists "Anonymous users can view teams" on public.teams;
+create policy "Anonymous users can view teams"
+on public.teams
+for select
+to anon
+using (true);
+
 drop policy if exists "Admins manage teams" on public.teams;
 create policy "Admins manage teams"
 on public.teams
@@ -529,6 +579,13 @@ create policy "Authenticated users can view games"
 on public.games
 for select
 to authenticated
+using (true);
+
+drop policy if exists "Anonymous users can view games" on public.games;
+create policy "Anonymous users can view games"
+on public.games
+for select
+to anon
 using (true);
 
 drop policy if exists "Admins manage games" on public.games;
@@ -825,6 +882,13 @@ for select
 to authenticated
 using (true);
 
+drop policy if exists "Anonymous users can view fixtures" on public.fixtures;
+create policy "Anonymous users can view fixtures"
+on public.fixtures
+for select
+to anon
+using (true);
+
 drop policy if exists "Admins manage fixtures" on public.fixtures;
 create policy "Admins manage fixtures"
 on public.fixtures
@@ -838,6 +902,13 @@ create policy "Authenticated users can view fixture players"
 on public.fixture_players
 for select
 to authenticated
+using (true);
+
+drop policy if exists "Anonymous users can view fixture players" on public.fixture_players;
+create policy "Anonymous users can view fixture players"
+on public.fixture_players
+for select
+to anon
 using (true);
 
 drop policy if exists "Admins manage fixture players" on public.fixture_players;

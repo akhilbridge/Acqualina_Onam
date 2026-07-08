@@ -1,68 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import AppCopyright from "../../components/AppCopyright";
 import SectionTitle from "../../components/SectionTitle";
+import { isPlayerEligibleForEvent } from "../../data/seed";
 import { usePublicInterestRegistration } from "../../lib/database";
-
-function normalizeCategory(category) {
-  const normalized = String(category ?? "").trim().toLowerCase();
-
-  if (normalized === "mens" || normalized === "men" || normalized === "gents") {
-    return "gents";
-  }
-
-  if (normalized === "ladies" || normalized === "women") {
-    return "ladies";
-  }
-
-  if (normalized === "boys" || normalized === "jr boys" || normalized === "jr. boys") {
-    return "boys";
-  }
-
-  if (normalized === "girls" || normalized === "jr girls" || normalized === "jr. girls") {
-    return "girls";
-  }
-
-  return normalized;
-}
-
-function isEligibleForEvent(playerCategory, eventCategory) {
-  const normalizedPlayerCategory = normalizeCategory(playerCategory);
-  const normalizedEventCategory = String(eventCategory ?? "").trim().toLowerCase();
-
-  if (!normalizedEventCategory || normalizedEventCategory === "open") {
-    return true;
-  }
-
-  if (normalizedEventCategory.includes("kids mixed")) {
-    return normalizedPlayerCategory === "boys" || normalizedPlayerCategory === "girls";
-  }
-
-  if (normalizedEventCategory.includes("kids")) {
-    return normalizedPlayerCategory === "boys" || normalizedPlayerCategory === "girls";
-  }
-
-  if (normalizedEventCategory.includes("adults")) {
-    return normalizedPlayerCategory === "gents" || normalizedPlayerCategory === "ladies";
-  }
-
-  if (normalizedEventCategory.includes("gents")) {
-    return normalizedPlayerCategory === "gents";
-  }
-
-  if (normalizedEventCategory.includes("ladies")) {
-    return normalizedPlayerCategory === "ladies";
-  }
-
-  if (normalizedEventCategory.includes("boys")) {
-    return normalizedPlayerCategory === "boys";
-  }
-
-  if (normalizedEventCategory.includes("girls")) {
-    return normalizedPlayerCategory === "girls";
-  }
-
-  return true;
-}
 
 function PublicRegistrationIntro() {
   return (
@@ -151,7 +91,7 @@ export default function PublicRegistrationView() {
     const normalizedSearch = deferredEventSearch.trim().toLowerCase();
 
     return sportsEvents
-      .filter((sportEvent) => isEligibleForEvent(selectedPlayer.category, sportEvent.eventCategory))
+      .filter((sportEvent) => isPlayerEligibleForEvent(selectedPlayer.category, sportEvent.eventCategory))
       .filter((sportEvent) => {
         if (!normalizedSearch) {
           return true;

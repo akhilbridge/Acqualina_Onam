@@ -1,88 +1,61 @@
 export const PLAYER_CATEGORY_OPTIONS = [
-  "Jr Girls",
-  "Jr Boys",
-  "Girls",
-  "Boys",
-  "Ladies",
   "Gents",
+  "Ladies",
+  "Boys 6-9 yrs",
+  "Girls 6-9 yrs",
+  "Boys 10-15 yrs",
+  "Girls 10-15 yrs",
 ];
 
 const PLAYER_CATEGORY_ALIASES = new Map([
-  ["jr girls", "Jr Girls"],
-  ["jr. girls", "Jr Girls"],
-  ["jrgirls", "Jr Girls"],
-  ["jr boys", "Jr Boys"],
-  ["jr. boys", "Jr Boys"],
-  ["jrboys", "Jr Boys"],
-  ["girls", "Girls"],
-  ["boys", "Boys"],
-  ["ladies", "Ladies"],
-  ["women", "Ladies"],
   ["gents", "Gents"],
   ["mens", "Gents"],
   ["men", "Gents"],
+  ["ladies", "Ladies"],
+  ["women", "Ladies"],
+  ["jr boys", "Boys 6-9 yrs"],
+  ["jr. boys", "Boys 6-9 yrs"],
+  ["jrboys", "Boys 6-9 yrs"],
+  ["boys 6-9 yrs", "Boys 6-9 yrs"],
+  ["boys 6 to 9 yrs", "Boys 6-9 yrs"],
+  ["boys 6-9", "Boys 6-9 yrs"],
+  ["jr girls", "Girls 6-9 yrs"],
+  ["jr. girls", "Girls 6-9 yrs"],
+  ["jrgirls", "Girls 6-9 yrs"],
+  ["girls 6-9 yrs", "Girls 6-9 yrs"],
+  ["girls 6 to 9 yrs", "Girls 6-9 yrs"],
+  ["girls 6-9", "Girls 6-9 yrs"],
+  ["boys", "Boys 10-15 yrs"],
+  ["boys 10-15 yrs", "Boys 10-15 yrs"],
+  ["boys 10 to 15 yrs", "Boys 10-15 yrs"],
+  ["boys 10-15", "Boys 10-15 yrs"],
+  ["girls", "Girls 10-15 yrs"],
+  ["girls 10-15 yrs", "Girls 10-15 yrs"],
+  ["girls 10 to 15 yrs", "Girls 10-15 yrs"],
+  ["girls 10-15", "Girls 10-15 yrs"],
 ]);
 
-const RAW_EVENT_DESCRIPTIONS = [
-  "Foosball - Girls, 6-9 Doubles",
-  "Foosball - Girls, 10-15 years Doubles",
-  "Foosball - Boys, 6-9 years Doubles",
-  "Foosball - Boys, 10-15 years Doubles",
-  "Foosball - Ladies Doubles",
-  "Foosball - Gents Doubles",
-  "Swimming - Girls, 6-9 years",
-  "Swimming - Girls, 10-15 years",
-  "Swimming - Boys, 6-9 years",
-  "Swimming - Boys, 10-15 years",
-  "Football - Kids",
-  "Football - Gents",
-  "Football - Ladies",
-  "Cricket - Gents",
-  "Cricket - Ladies",
-  "Cricket - Kids",
-  "Basketball - Boys",
-  "Basketball - Girls",
-  "Basketball - Ladies",
-  "Basketball - Gents",
-  "Carroms - Girls Singles",
-  "Carroms - Boys Singles",
-  "Carroms - Girls Doubles",
-  "Carroms - Boys Doubles",
-  "Carroms - Kids Mixed Doubles",
-  "Carroms - Gents Singles",
-  "Carroms - Ladies Singles",
-  "Carroms - Gents Doubles",
-  "Carroms - Ladies Doubles",
-  "Table Tennis - Boys Singles",
-  "Table Tennis - Girls Singles",
-  "Table Tennis - Gents Singles",
-  "Table Tennis - Ladies Singles",
-  "Table Tennis - Boys Doubles",
-  "Table Tennis - Girls Doubles",
-  "Table Tennis - Kids Mixed Doubles",
-  "Table Tennis - Gents Doubles",
-  "Table Tennis - Ladies Doubles",
-  "Pickleball - Boys Singles",
-  "Pickleball - Gents Singles",
-  "Pickleball - Ladies Singles",
-  "Pickleball - Boys Doubles",
-  "Pickleball - Kids Mixed Doubles",
-  "Pickleball - Gents Doubles",
-  "Pickleball - Ladies Doubles",
-  "Chess Kids",
-  "Chess Adults",
-  "Cards 28 Gents",
-  "Cards 28 Ladies",
-  "Rummy - Kids",
-  "Rummy - Ladies",
-  "Rummy - Gents",
-  "Badminton - Boys Singles",
-  "Badminton - Gents Singles",
-  "Badminton - Ladies Singles",
-  "Badminton - Boys Doubles",
-  "Badminton - Kids Mixed Doubles",
-  "Badminton - Gents Doubles",
-  "Badminton - Ladies Doubles",
+const EVENT_DEFINITIONS = [
+  { eventName: "Foosball", playersPerSide: 2 },
+  { eventName: "Carroms Singles", playersPerSide: 1 },
+  { eventName: "Carroms Doubles", playersPerSide: 2 },
+  { eventName: "Carroms Mixed", playersPerSide: 2 },
+  { eventName: "Chess", playersPerSide: 1 },
+  { eventName: "TT Singles", playersPerSide: 1 },
+  { eventName: "TT Doubles", playersPerSide: 2 },
+  { eventName: "TT Mixed", playersPerSide: 2 },
+  { eventName: "Badminton Singles", playersPerSide: 1 },
+  { eventName: "Badminton Doubles", playersPerSide: 2 },
+  { eventName: "Badminton Mixed", playersPerSide: 2 },
+  { eventName: "Pickleball Singles", playersPerSide: 1 },
+  { eventName: "Pickleball Doubles", playersPerSide: 2 },
+  { eventName: "Football", playersPerSide: 5 },
+  { eventName: "Cricket", playersPerSide: 11 },
+  { eventName: "Basketball", playersPerSide: 5 },
+  { eventName: "Swimming", playersPerSide: 1 },
+  { eventName: "Crads 28", playersPerSide: 1 },
+  { eventName: "Crads 56", playersPerSide: 1 },
+  { eventName: "Crads Rummy", playersPerSide: 1 },
 ];
 
 function normalizeText(value) {
@@ -92,89 +65,45 @@ function normalizeText(value) {
     .trim();
 }
 
-function deriveSportTypeAndCategory(description) {
-  const normalizedDescription = normalizeText(description);
-  const separatorMatch = normalizedDescription.match(/^(.*?)\s*-\s*(.+)$/);
-
-  if (separatorMatch) {
-    return {
-      sportType: normalizeText(separatorMatch[1]),
-      categoryText: normalizeText(separatorMatch[2]),
-    };
-  }
-
-  const namedPrefixes = ["Chess", "Cards 28", "Rummy"];
-  const matchingPrefix = namedPrefixes.find((prefix) =>
-    normalizedDescription.startsWith(`${prefix} `),
-  );
-
-  if (matchingPrefix) {
-    return {
-      sportType: matchingPrefix,
-      categoryText: normalizeText(normalizedDescription.slice(matchingPrefix.length)),
-    };
-  }
-
-  return {
-    sportType: normalizedDescription,
-    categoryText: "Open",
-  };
-}
-
-function derivePlayersPerSide(description, sportType) {
-  const normalizedDescription = normalizeText(description).toLowerCase();
-
-  if (normalizedDescription.includes("doubles")) {
-    return 2;
-  }
-
-  if (normalizedDescription.includes("singles")) {
-    return 1;
-  }
-
-  if (["Chess", "Swimming", "Cards 28", "Rummy"].includes(sportType)) {
-    return 1;
-  }
-
-  return null;
-}
-
-function deriveEventCategory(categoryText) {
-  const cleaned = normalizeText(categoryText)
-    .replace(/\bSingles\b/gi, "")
-    .replace(/\bDoubles Doubles\b/gi, "Doubles")
-    .replace(/\bDoubles\b/gi, "")
-    .replace(/\s+/g, " ")
-    .replace(/\s*,\s*/g, ", ")
-    .trim()
-    .replace(/,$/, "");
-
-  return cleaned || "Open";
-}
-
-function buildSportEventTemplate(description) {
-  const normalizedDescription = normalizeText(description);
-  const { sportType, categoryText } = deriveSportTypeAndCategory(normalizedDescription);
-
-  return {
-    name: normalizedDescription,
-    sportType,
-    eventCategory: deriveEventCategory(categoryText),
-    playersPerSide: derivePlayersPerSide(normalizedDescription, sportType),
-  };
-}
-
 export function normalizePlayerCategory(category) {
   const normalizedKey = normalizeText(category).toLowerCase();
   return PLAYER_CATEGORY_ALIASES.get(normalizedKey) ?? normalizeText(category);
 }
 
-export const SPORT_EVENT_TEMPLATES = RAW_EVENT_DESCRIPTIONS.map(buildSportEventTemplate);
+export function normalizeEventCategory(category) {
+  return normalizePlayerCategory(category);
+}
 
-export const SPORT_TYPE_OPTIONS = Array.from(
-  new Set(SPORT_EVENT_TEMPLATES.map((template) => template.sportType)),
+export function getPlayersPerSideForEvent(eventName) {
+  const normalizedEventName = normalizeText(eventName);
+  const matchingDefinition = EVENT_DEFINITIONS.find(
+    (definition) => definition.eventName === normalizedEventName,
+  );
+  return matchingDefinition?.playersPerSide ?? 1;
+}
+
+export function isPlayerEligibleForEvent(playerCategory, eventCategory) {
+  const normalizedPlayerCategory = normalizePlayerCategory(playerCategory);
+  const normalizedEventCategory = normalizeEventCategory(eventCategory);
+
+  if (!normalizedEventCategory || normalizedEventCategory.toLowerCase() === "open") {
+    return true;
+  }
+
+  return normalizedPlayerCategory === normalizedEventCategory;
+}
+
+export const SPORT_EVENT_TEMPLATES = EVENT_DEFINITIONS.flatMap((definition) =>
+  PLAYER_CATEGORY_OPTIONS.map((category) => ({
+    name: `${definition.eventName} - ${category}`,
+    sportType: definition.eventName,
+    eventCategory: category,
+    playersPerSide: definition.playersPerSide,
+    isActive: true,
+    status: "registration_open",
+  })),
 );
 
-export const EVENT_CATEGORY_OPTIONS = Array.from(
-  new Set(SPORT_EVENT_TEMPLATES.map((template) => template.eventCategory)),
-);
+export const SPORT_TYPE_OPTIONS = EVENT_DEFINITIONS.map((definition) => definition.eventName);
+
+export const EVENT_CATEGORY_OPTIONS = [...PLAYER_CATEGORY_OPTIONS];
