@@ -186,7 +186,8 @@ create table if not exists public.public_event_interest_submissions (
   player_category text not null,
   ip_address text not null default '',
   user_agent text not null default '',
-  created_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default timezone('utc', now()),
+  unique (player_id)
 );
 
 create table if not exists public.public_event_interest_submission_events (

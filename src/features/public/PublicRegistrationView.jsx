@@ -175,8 +175,8 @@ export default function PublicRegistrationView() {
     filteredSportsEvents.length > 0;
   const publicRegistrationLocked = appSettings.publicRegistrationLocked;
 
-  const loadPreviousSelections = async (nextPlayerId) => {
-    if (!nextPlayerId) {
+  const loadPreviousSelections = async (nextPlayer) => {
+    if (!nextPlayer?.id) {
       setSelectedSportEventIds([]);
       setPreviousSelectionsError("");
       return;
@@ -186,7 +186,12 @@ export default function PublicRegistrationView() {
     setPreviousSelectionsError("");
 
     try {
-      const submissions = await getPlayerInterestSubmissions(nextPlayerId);
+      const submissions = await getPlayerInterestSubmissions({
+        playerId: nextPlayer.id,
+        playerName: nextPlayer.name,
+        villaNumber: nextPlayer.villaNumber,
+        playerCategory: nextPlayer.category,
+      });
       setSelectedSportEventIds(
         Array.from(
           new Set(
@@ -210,7 +215,7 @@ export default function PublicRegistrationView() {
     let active = true;
 
     async function loadPreviousSubmissions() {
-      if (!playerId) {
+      if (!selectedPlayer?.id) {
         setSelectedSportEventIds([]);
         setPreviousSelectionsError("");
         return;
@@ -220,7 +225,12 @@ export default function PublicRegistrationView() {
       setPreviousSelectionsError("");
 
       try {
-        const submissions = await getPlayerInterestSubmissions(playerId);
+        const submissions = await getPlayerInterestSubmissions({
+          playerId: selectedPlayer.id,
+          playerName: selectedPlayer.name,
+          villaNumber: selectedPlayer.villaNumber,
+          playerCategory: selectedPlayer.category,
+        });
         if (active) {
           setSelectedSportEventIds(
             Array.from(
@@ -251,7 +261,7 @@ export default function PublicRegistrationView() {
     return () => {
       active = false;
     };
-  }, [playerId]);
+  }, [selectedPlayer]);
 
   const handleTeamChange = (nextTeamId) => {
     setTeamId(nextTeamId);
@@ -310,9 +320,9 @@ export default function PublicRegistrationView() {
         playerId,
         sportEventIds: selectedSportEventIds,
       });
-      await loadPreviousSelections(playerId);
+      await loadPreviousSelections(selectedPlayer);
       setStatus(
-        `Interest saved for ${response.playerName}. ${response.selectedEventCount} event${response.selectedEventCount === 1 ? "" : "s"} submitted.`,
+        `Interest ${response.action === "updated" ? "updated" : "saved"} for ${response.playerName}. ${response.selectedEventCount} event${response.selectedEventCount === 1 ? "" : "s"} submitted.`,
       );
     } catch (submissionError) {
       setStatus(submissionError.message ?? "Interest submission failed.");

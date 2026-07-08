@@ -249,17 +249,22 @@ function mapPublicInterestSubmissions({
 }) {
   const sportsEventsById = new Map(sportsEvents.map((sportEvent) => [sportEvent.id, sportEvent]));
   const playersById = new Map(players.map((player) => [player.id, player]));
-  const submissions = submissionRows.map((submission) => ({
-    id: submission.id,
-    villaNumber: submission.villa_number,
-    playerId: submission.player_id,
-    playerName: submission.player_name,
-    playerCategory: normalizePlayerCategory(submission.player_category),
-    ipAddress: submission.ip_address ?? "",
-    userAgent: submission.user_agent ?? "",
-    createdAt: submission.created_at,
-    sportEventIds: [],
-  }));
+  const submissions = submissionRows
+    .map((submission) => ({
+      id: submission.id,
+      villaNumber: submission.villa_number,
+      playerId: submission.player_id,
+      playerName: submission.player_name,
+      playerCategory: normalizePlayerCategory(submission.player_category),
+      ipAddress: submission.ip_address ?? "",
+      userAgent: submission.user_agent ?? "",
+      createdAt: submission.created_at,
+      sportEventIds: [],
+    }))
+    .sort(
+      (left, right) =>
+        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+    );
 
   const submissionsById = new Map(submissions.map((submission) => [submission.id, submission]));
 
@@ -272,7 +277,32 @@ function mapPublicInterestSubmissions({
     targetSubmission.sportEventIds.push(row.sport_event_id);
   });
 
-  return submissions.map((submission) => ({
+  const mergedSubmissionsByKey = new Map();
+
+  submissions.forEach((submission) => {
+    const personKey = [
+      submission.villaNumber,
+      submission.playerName.trim().toLowerCase(),
+      submission.playerCategory.trim().toLowerCase(),
+    ].join("::");
+
+    if (!mergedSubmissionsByKey.has(personKey)) {
+      mergedSubmissionsByKey.set(personKey, {
+        ...submission,
+        mergedSubmissionIds: [submission.id],
+        sportEventIds: [...submission.sportEventIds],
+      });
+      return;
+    }
+
+    const mergedSubmission = mergedSubmissionsByKey.get(personKey);
+    mergedSubmission.mergedSubmissionIds.push(submission.id);
+    mergedSubmission.sportEventIds = Array.from(
+      new Set([...mergedSubmission.sportEventIds, ...submission.sportEventIds]),
+    );
+  });
+
+  return Array.from(mergedSubmissionsByKey.values()).map((submission) => ({
     ...submission,
     player:
       playersById.get(submission.playerId) ??
@@ -636,13 +666,29 @@ export function usePublicInterestRegistration() {
     return data;
   };
 
-  const getPlayerInterestSubmissions = async (playerId) => {
+  const getPlayerInterestSubmissions = async (playerDetails) => {
     if (!supabase) {
       throw new Error("Supabase is not configured.");
     }
 
-    const normalizedPlayerId = String(playerId ?? "").trim();
-    if (!normalizedPlayerId) {
+    const normalizedPlayerId =
+      typeof playerDetails === "string"
+        ? String(playerDetails).trim()
+        : String(playerDetails?.playerId ?? playerDetails?.id ?? "").trim();
+    const normalizedVillaNumber =
+      typeof playerDetails === "string"
+        ? ""
+        : String(playerDetails?.villaNumber ?? "").trim();
+    const normalizedPlayerName =
+      typeof playerDetails === "string"
+        ? ""
+        : String(playerDetails?.playerName ?? playerDetails?.name ?? "").trim();
+    const normalizedPlayerCategory =
+      typeof playerDetails === "string"
+        ? ""
+        : normalizePlayerCategory(playerDetails?.playerCategory ?? playerDetails?.category ?? "");
+
+    if (!normalizedPlayerId && !normalizedVillaNumber && !normalizedPlayerName) {
       return [];
     }
 
@@ -656,9 +702,32 @@ export function usePublicInterestRegistration() {
       throw submissionsError;
     }
 
+    let rows = data ?? [];
+
+    if (
+      rows.length === 0 &&
+      normalizedVillaNumber &&
+      normalizedPlayerName &&
+      normalizedPlayerCategory
+    ) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("public_event_interest_submission_summary")
+        .select("*")
+        .eq("villa_number", normalizedVillaNumber)
+        .eq("player_name", normalizedPlayerName)
+        .eq("player_category", normalizedPlayerCategory)
+        .order("created_at", { ascending: false });
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+
+      rows = fallbackData ?? [];
+    }
+
     const submissionsById = new Map();
 
-    (data ?? []).forEach((row) => {
+    rows.forEach((row) => {
       if (!submissionsById.has(row.id)) {
         submissionsById.set(row.id, {
           id: row.id,
@@ -1594,6 +1663,14 @@ export function useAppDatabase(userId) {
       throw new Error("Choose a valid player.");
     }
 
+    const conflictingSubmission = database.publicInterestSubmissions.find(
+      (submission) =>
+        submission.playerId === normalizedPlayerId && submission.id !== existingSubmission.id,
+    );
+    if (conflictingSubmission) {
+      throw new Error("This player already has a submitted entry. Edit that entry instead.");
+    }
+
     if (selectedPlayer.villaNumber !== normalizedVillaNumber) {
       throw new Error("Villa number must match the selected player.");
     }
@@ -1604,6 +1681,21 @@ export function useAppDatabase(userId) {
     );
     if (invalidSportEventId) {
       throw new Error("Choose valid sports events.");
+    }
+
+    const duplicateSubmissionIds = (existingSubmission.mergedSubmissionIds ?? []).filter(
+      (submissionId) => submissionId !== existingSubmission.id,
+    );
+
+    if (duplicateSubmissionIds.length > 0) {
+      const { error: deleteDuplicateSubmissionsError } = await supabase
+        .from("public_event_interest_submissions")
+        .delete()
+        .in("id", duplicateSubmissionIds);
+
+      if (deleteDuplicateSubmissionsError) {
+        throw deleteDuplicateSubmissionsError;
+      }
     }
 
     const { error: updateSubmissionError } = await supabase
@@ -1657,10 +1749,11 @@ export function useAppDatabase(userId) {
       throw new Error("The selected submission was not found.");
     }
 
+    const submissionIdsToDelete = existingSubmission.mergedSubmissionIds ?? [existingSubmission.id];
     const { error: deleteSubmissionError } = await supabase
       .from("public_event_interest_submissions")
       .delete()
-      .eq("id", existingSubmission.id);
+      .in("id", submissionIdsToDelete);
 
     if (deleteSubmissionError) {
       throw deleteSubmissionError;

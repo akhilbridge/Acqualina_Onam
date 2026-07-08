@@ -194,28 +194,113 @@ Deno.serve(async (request) => {
       );
     }
 
-    const { data: createdSubmission, error: submissionError } = await adminClient
+    const requestIp = getRequestIp(request);
+    const userAgent = request.headers.get("user-agent") ?? "";
+    const { data: exactPlayerSubmissions, error: exactPlayerSubmissionsError } = await adminClient
       .from("public_event_interest_submissions")
-      .insert({
-        villa_number: villaNumber,
-        player_id: player.id,
-        player_name: player.name,
-        player_category: player.category,
-        ip_address: getRequestIp(request),
-        user_agent: request.headers.get("user-agent") ?? "",
-      })
-      .select("id")
-      .single();
+      .select("id, created_at")
+      .eq("player_id", player.id)
+      .order("created_at", { ascending: false });
 
-    if (submissionError || !createdSubmission) {
-      return jsonResponse(
-        { error: submissionError?.message ?? "Interest submission could not be saved." },
-        400,
-      );
+    if (exactPlayerSubmissionsError) {
+      return jsonResponse({ error: exactPlayerSubmissionsError.message }, 400);
+    }
+
+    const { data: matchingPersonSubmissions, error: matchingPersonSubmissionsError } = await adminClient
+      .from("public_event_interest_submissions")
+      .select("id, created_at, player_id")
+      .eq("villa_number", villaNumber)
+      .eq("player_name", player.name)
+      .eq("player_category", player.category)
+      .order("created_at", { ascending: false });
+
+    if (matchingPersonSubmissionsError) {
+      return jsonResponse({ error: matchingPersonSubmissionsError.message }, 400);
+    }
+
+    const dedupedExistingSubmissions = Array.from(
+      new Map(
+        [...(exactPlayerSubmissions ?? []), ...(matchingPersonSubmissions ?? [])].map((submission) => [
+          submission.id,
+          submission,
+        ]),
+      ).values(),
+    ).sort(
+      (left, right) =>
+        new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+    );
+
+    const keeperSubmission = dedupedExistingSubmissions[0] ?? null;
+    const duplicateSubmissionIds = dedupedExistingSubmissions
+      .slice(1)
+      .map((submission) => submission.id);
+
+    if (duplicateSubmissionIds.length > 0) {
+      const { error: deleteDuplicateSubmissionsError } = await adminClient
+        .from("public_event_interest_submissions")
+        .delete()
+        .in("id", duplicateSubmissionIds);
+
+      if (deleteDuplicateSubmissionsError) {
+        return jsonResponse({ error: deleteDuplicateSubmissionsError.message }, 400);
+      }
+    }
+
+    let submissionId = keeperSubmission?.id ?? "";
+    let action: "created" | "updated" = keeperSubmission ? "updated" : "created";
+
+    if (keeperSubmission) {
+      const { error: updateSubmissionError } = await adminClient
+        .from("public_event_interest_submissions")
+        .update({
+          villa_number: villaNumber,
+          player_id: player.id,
+          player_name: player.name,
+          player_category: player.category,
+          ip_address: requestIp,
+          user_agent: userAgent,
+          created_at: new Date().toISOString(),
+        })
+        .eq("id", keeperSubmission.id);
+
+      if (updateSubmissionError) {
+        return jsonResponse({ error: updateSubmissionError.message }, 400);
+      }
+
+      const { error: deleteExistingEventLinksError } = await adminClient
+        .from("public_event_interest_submission_events")
+        .delete()
+        .eq("submission_id", keeperSubmission.id);
+
+      if (deleteExistingEventLinksError) {
+        return jsonResponse({ error: deleteExistingEventLinksError.message }, 400);
+      }
+    } else {
+      const { data: createdSubmission, error: submissionError } = await adminClient
+        .from("public_event_interest_submissions")
+        .insert({
+          villa_number: villaNumber,
+          player_id: player.id,
+          player_name: player.name,
+          player_category: player.category,
+          ip_address: requestIp,
+          user_agent: userAgent,
+        })
+        .select("id")
+        .single();
+
+      if (submissionError || !createdSubmission) {
+        return jsonResponse(
+          { error: submissionError?.message ?? "Interest submission could not be saved." },
+          400,
+        );
+      }
+
+      submissionId = createdSubmission.id;
     }
 
     const submissionEvents = sportEventIds.map((sportEventId) => ({
-      submission_id: createdSubmission.id,
+      submission_id: submissionId,
       sport_event_id: sportEventId,
     }));
 
@@ -228,7 +313,8 @@ Deno.serve(async (request) => {
     }
 
     return jsonResponse({
-      submissionId: createdSubmission.id,
+      action,
+      submissionId,
       playerName: player.name,
       selectedEventCount: sportEventIds.length,
     });
