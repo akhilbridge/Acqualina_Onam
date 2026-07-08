@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useState } from "react";
 import Sidebar, { NAV_ITEMS } from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
+import AppCopyright from "./components/AppCopyright";
 import DashboardView from "./features/dashboard/DashboardView";
 import TeamsView from "./features/teams/TeamsView";
 import PlayersView from "./features/players/PlayersView";
@@ -15,11 +16,14 @@ import { useAppDatabase, useAuthSession } from "./lib/database";
 function LoadingPanel({ title, copy }) {
   return (
     <div className="auth-shell">
-      <section className="panel auth-panel">
-        <span className="eyebrow">Acqualina Onam 2026</span>
-        <h2>{title}</h2>
-        <p>{copy}</p>
-      </section>
+      <div className="auth-footer-stack">
+        <section className="panel auth-panel">
+          <span className="eyebrow">Aqualina Onam 2026</span>
+          <h2>{title}</h2>
+          <p>{copy}</p>
+        </section>
+        <AppCopyright />
+      </div>
     </div>
   );
 }
@@ -199,14 +203,17 @@ export default function App() {
   if (!viewerProfile) {
     return (
       <div className="auth-shell">
-        <section className="panel auth-panel">
-          <span className="eyebrow">Profile setup issue</span>
-          <h2>Profile row not found</h2>
-          <p>{error || "Run the SQL file in the supabase folder and then sign in again."}</p>
-          <button type="button" className="ghost-button" onClick={signOut}>
-            Sign out
-          </button>
-        </section>
+        <div className="auth-footer-stack">
+          <section className="panel auth-panel">
+            <span className="eyebrow">Profile setup issue</span>
+            <h2>Profile row not found</h2>
+            <p>{error || "Run the SQL file in the supabase folder and then sign in again."}</p>
+            <button type="button" className="ghost-button" onClick={signOut}>
+              Sign out
+            </button>
+          </section>
+          <AppCopyright />
+        </div>
       </div>
     );
   }
@@ -386,6 +393,7 @@ export default function App() {
 
       <main className="main-panel">
         {content}
+        <AppCopyright className="app-main-copyright" />
       </main>
 
       <MobileNav

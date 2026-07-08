@@ -135,6 +135,7 @@ function mapSupabaseDatabase({
     sportType: sportEvent.sport_type ?? "General",
     eventCategory: sportEvent.event_category ?? "Open",
     venue: sportEvent.venue ?? "TBD",
+    rules: sportEvent.rules ?? "",
     playersPerSide: sportEvent.players_per_side ?? 1,
     status: sportEvent.status ?? "draft",
     createdAt: sportEvent.created_at,
@@ -184,8 +185,13 @@ function mapSupabaseDatabase({
     sportEventId: fixture.sport_event_id,
     fixtureNumber: fixture.fixture_number,
     label: fixture.label ?? "",
+    fixtureDate: fixture.fixture_date ?? "",
+    fixtureTime: typeof fixture.fixture_time === "string"
+      ? fixture.fixture_time.slice(0, 5)
+      : "",
     venue: fixture.venue ?? "TBD",
     status: fixture.status ?? "draft",
+    winnerTeamId: fixture.winner_team_id ?? null,
     sideATeamId: fixture.side_a_team_id,
     sideBTeamId: fixture.side_b_team_id,
     sideASourceFixtureId: fixture.side_a_source_fixture_id ?? null,
@@ -645,7 +651,7 @@ export function usePublicInterestRegistration() {
     }
 
     if (appSettings.publicRegistrationLocked) {
-      throw new Error("Public sports registration is currently locked.");
+      throw new Error("Sports event registration is currently locked.");
     }
 
     const { data, error: functionError } = await supabase.functions.invoke(
@@ -1079,6 +1085,7 @@ export function useAppDatabase(userId) {
       sport_type: sportEvent.sportType,
       event_category: sportEvent.eventCategory || "Open",
       venue: sportEvent.venue,
+      rules: sportEvent.rules || "",
       players_per_side: sportEvent.playersPerSide,
       status: sportEvent.status,
     });
@@ -1102,6 +1109,7 @@ export function useAppDatabase(userId) {
         sport_type: sportEvent.sportType,
         event_category: sportEvent.eventCategory || "Open",
         venue: sportEvent.venue,
+        rules: sportEvent.rules || "",
         players_per_side: sportEvent.playersPerSide,
         status: sportEvent.status,
       })
@@ -1389,8 +1397,11 @@ export function useAppDatabase(userId) {
   const createEventFixture = async ({
     sportEventId,
     label,
+    fixtureDate,
+    fixtureTime,
     venue,
     status,
+    winnerTeamId,
     notes,
     sideAEntryId,
     sideBEntryId,
@@ -1423,6 +1434,15 @@ export function useAppDatabase(userId) {
       throw new Error("A fixture needs entries from two different teams.");
     }
 
+    const normalizedWinnerTeamId = winnerTeamId || null;
+    if (
+      normalizedWinnerTeamId &&
+      normalizedWinnerTeamId !== sideAEntry.teamId &&
+      normalizedWinnerTeamId !== sideBEntry.teamId
+    ) {
+      throw new Error("Winner must match Entry A or Entry B.");
+    }
+
     const eventFixtures = database.eventFixtures.filter(
       (fixture) => fixture.sportEventId === sportEventId,
     );
@@ -1435,8 +1455,11 @@ export function useAppDatabase(userId) {
         sport_event_id: sportEventId,
         fixture_number: nextFixtureNumber,
         label: label?.trim() || `Fixture ${nextFixtureNumber}`,
+        fixture_date: fixtureDate || null,
+        fixture_time: fixtureTime || null,
         venue: venue?.trim() || "TBD",
         status: status || "draft",
+        winner_team_id: normalizedWinnerTeamId,
         side_a_team_id: sideAEntry.teamId,
         side_b_team_id: sideBEntry.teamId,
         side_a_source_fixture_id: null,
@@ -1479,8 +1502,11 @@ export function useAppDatabase(userId) {
   const updateEventFixture = async ({
     id,
     label,
+    fixtureDate,
+    fixtureTime,
     venue,
     status,
+    winnerTeamId,
     notes,
     sideAEntryId,
     sideBEntryId,
@@ -1516,12 +1542,24 @@ export function useAppDatabase(userId) {
       throw new Error("A fixture needs entries from two different teams.");
     }
 
+    const normalizedWinnerTeamId = winnerTeamId || null;
+    if (
+      normalizedWinnerTeamId &&
+      normalizedWinnerTeamId !== sideAEntry.teamId &&
+      normalizedWinnerTeamId !== sideBEntry.teamId
+    ) {
+      throw new Error("Winner must match Entry A or Entry B.");
+    }
+
     const { error: updateFixtureError } = await supabase
       .from("fixtures")
       .update({
         label: label?.trim() || existingFixture.label || `Fixture ${existingFixture.fixtureNumber}`,
+        fixture_date: fixtureDate || null,
+        fixture_time: fixtureTime || null,
         venue: venue?.trim() || "TBD",
         status: status || "draft",
+        winner_team_id: normalizedWinnerTeamId,
         side_a_team_id: sideAEntry.teamId,
         side_b_team_id: sideBEntry.teamId,
         side_a_source_fixture_id: null,

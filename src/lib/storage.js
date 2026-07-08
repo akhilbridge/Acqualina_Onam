@@ -5,7 +5,7 @@ const EMPTY_DATABASE = {
   games: [],
 };
 
-export const STORAGE_KEY = "acqualina-onam-games-db-v1";
+export const STORAGE_KEY = "aqualina-onam-games-db-v1";
 
 export function loadLocalDatabase() {
   if (typeof window === "undefined") {

@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import AppCopyright from "../../components/AppCopyright";
 import SectionTitle from "../../components/SectionTitle";
 import { usePublicInterestRegistration } from "../../lib/database";
 
@@ -66,8 +67,8 @@ function isEligibleForEvent(playerCategory, eventCategory) {
 function PublicRegistrationIntro() {
   return (
     <section className="panel public-registration-hero">
-      <span className="eyebrow public-registration-kicker">Public Sports Registration</span>
-      <h1>Acqualina Onam 2026</h1>
+      <span className="eyebrow public-registration-kicker">Sports Event Registration</span>
+      <h1>Aqualina Onam 2026</h1>
       <p className="public-registration-quote">
         "Onam brings us together, and sport turns that togetherness into celebration."
       </p>
@@ -308,7 +309,7 @@ export default function PublicRegistrationView() {
     }
 
     if (publicRegistrationLocked) {
-      setStatus("Public sports registration is currently locked.");
+      setStatus("Sports event registration is currently locked.");
       return;
     }
 
@@ -337,9 +338,10 @@ export default function PublicRegistrationView() {
         <div className="public-registration-stack">
           <PublicRegistrationIntro />
           <section className="panel auth-panel">
-            <h2>Public Sports Registration</h2>
-            <p>Supabase environment variables are missing, so the public registration page is not available yet.</p>
+            <h2>Sports Event Registration</h2>
+            <p>Supabase environment variables are missing, so the registration page is not available yet.</p>
           </section>
+          <AppCopyright />
         </div>
       </div>
     );
@@ -352,7 +354,7 @@ export default function PublicRegistrationView() {
 
         <section className="panel public-registration-panel">
           <SectionTitle
-            title="Public Sports Registration"
+            title="Sports Event Registration"
             description="Choose your team, category, player, and submit interest for the events you are eligible to join."
           />
 
@@ -504,7 +506,7 @@ export default function PublicRegistrationView() {
 
             {publicRegistrationLocked ? (
               <p className="status-note">
-                Public sports registration is currently locked. You can view previous submissions,
+                Sports event registration is currently locked. You can view previous submissions,
                 but new interests cannot be submitted right now.
               </p>
             ) : null}
@@ -527,6 +529,7 @@ export default function PublicRegistrationView() {
             </div>
           </form>
         </section>
+        <AppCopyright />
       </div>
     </div>
   );

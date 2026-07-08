@@ -84,6 +84,7 @@ create table if not exists public.sports_events (
   sport_type text not null default 'General',
   event_category text not null default 'Open',
   venue text not null default 'TBD',
+  rules text not null default '',
   players_per_side integer not null default 1 check (players_per_side between 1 and 50),
   status public.sport_event_status not null default 'draft',
   created_at timestamptz not null default timezone('utc', now()),
@@ -203,8 +204,11 @@ create table if not exists public.fixtures (
   sport_event_id uuid not null references public.sports_events(id) on delete cascade,
   fixture_number integer not null,
   label text not null default '',
+  fixture_date date,
+  fixture_time time,
   venue text not null default 'TBD',
   status public.game_status not null default 'draft',
+  winner_team_id uuid references public.teams(id) on delete set null,
   side_a_team_id uuid references public.teams(id) on delete cascade,
   side_b_team_id uuid references public.teams(id) on delete cascade,
   side_a_source_fixture_id uuid references public.fixtures(id) on delete set null,
@@ -291,6 +295,7 @@ join public.sports_events
 grant select on public.public_event_interest_submission_summary to anon, authenticated;
 
 create index if not exists fixtures_sport_event_id_idx on public.fixtures (sport_event_id);
+create index if not exists fixtures_winner_team_id_idx on public.fixtures (winner_team_id);
 create index if not exists fixtures_side_a_team_id_idx on public.fixtures (side_a_team_id);
 create index if not exists fixtures_side_b_team_id_idx on public.fixtures (side_b_team_id);
 create index if not exists fixtures_side_a_source_fixture_id_idx on public.fixtures (side_a_source_fixture_id);

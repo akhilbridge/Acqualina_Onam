@@ -27,6 +27,7 @@ const EMPTY_SPORT_EVENT_FORM = {
   sportType: "",
   eventCategory: "Open",
   venue: "TBD",
+  rules: "",
   playersPerSide: "1",
   status: "draft",
 };
@@ -135,9 +136,21 @@ function createSportEventFormFromEvent(sportEvent) {
     sportType: sportEvent.sportType,
     eventCategory: sportEvent.eventCategory ?? "Open",
     venue: sportEvent.venue,
+    rules: sportEvent.rules ?? "",
     playersPerSide: String(sportEvent.playersPerSide),
     status: sportEvent.status,
   };
+}
+
+function RulesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M6 3h9l5 5v13H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm8 1.5V9h4.5L14 4.5zM8 12h8v1.8H8V12zm0 3.8h8v1.8H8v-1.8zm0-7.6h4.5V10H8V8.2z"
+        fill="currentColor"
+      />
+    </svg>
+  );
 }
 
 function getFixtureHeading(game) {
@@ -494,6 +507,7 @@ export default function GamesView({
   const [editingSportEventId, setEditingSportEventId] = useState("");
   const [gameForm, setGameForm] = useState(() => createEmptyGameForm(teams));
   const [sportEventForm, setSportEventForm] = useState(EMPTY_SPORT_EVENT_FORM);
+  const [viewingRulesSportEventId, setViewingRulesSportEventId] = useState("");
   const [selectedSportEventTemplateName, setSelectedSportEventTemplateName] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedRegistrationTeamId, setSelectedRegistrationTeamId] = useState("");
@@ -656,6 +670,8 @@ export default function GamesView({
   const eventHasGeneratedFixtures = visibleEventFixtures.length > 0;
   const isEditingGame = editingGameId.length > 0;
   const isEditingSportEvent = editingSportEventId.length > 0;
+  const viewingRulesSportEvent =
+    sportsEvents.find((sportEvent) => sportEvent.id === viewingRulesSportEventId) ?? null;
   const selectedGameSportEvent =
     sportsEvents.find((sportEvent) => sportEvent.name === gameForm.title) ?? null;
   const gameEventEntries = database.sportEventEntries
@@ -882,6 +898,7 @@ export default function GamesView({
         sportType: sportEventForm.sportType.trim(),
         eventCategory: sportEventForm.eventCategory.trim() || "Open",
         venue: sportEventForm.venue.trim() || "TBD",
+        rules: sportEventForm.rules.trim(),
         playersPerSide,
         status: sportEventForm.status,
       };
@@ -917,6 +934,30 @@ export default function GamesView({
     setSelectedSportEventTemplateName("");
     setSportEventForm(createSportEventFormFromEvent(sportEvent));
   };
+
+  const handleToggleSportEventRules = (sportEventId) => {
+    setViewingRulesSportEventId((current) =>
+      current === sportEventId ? "" : sportEventId,
+    );
+  };
+
+  useEffect(() => {
+    if (!viewingRulesSportEventId) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setViewingRulesSportEventId("");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [viewingRulesSportEventId]);
 
   const handleDeleteSportEvent = async (sportEvent) => {
     const confirmed = window.confirm(
@@ -1247,6 +1288,21 @@ export default function GamesView({
                 </label>
               </div>
               <label>
+                <span>Game rules</span>
+                <textarea
+                  value={sportEventForm.rules}
+                  onChange={(event) =>
+                    setSportEventForm((current) => ({
+                      ...current,
+                      rules: event.target.value,
+                    }))
+                  }
+                  placeholder="Add the rules, scoring notes, or instructions for this event"
+                  rows="5"
+                  disabled={sportEventSubmitting}
+                />
+              </label>
+              <label>
                 <span>Status</span>
                 <select
                   value={sportEventForm.status}
@@ -1316,6 +1372,16 @@ export default function GamesView({
                     <div className="table-actions">
                       <button
                         type="button"
+                        className="ghost-button inline-button icon-button"
+                        onClick={() => handleToggleSportEventRules(sportEvent.id)}
+                        disabled={sportEventSubmitting}
+                        aria-label={`View rules for ${sportEvent.name}`}
+                        title={`View rules for ${sportEvent.name}`}
+                      >
+                        <RulesIcon />
+                      </button>
+                      <button
+                        type="button"
                         className="ghost-button inline-button"
                         onClick={() => handleEditSportEvent(sportEvent)}
                         disabled={sportEventSubmitting}
@@ -1340,6 +1406,44 @@ export default function GamesView({
             </div>
           </div>
         </section>
+      ) : null}
+
+      {viewingRulesSportEvent ? (
+        <div
+          className="modal-backdrop sport-event-rules-modal-backdrop"
+          onClick={() => setViewingRulesSportEventId("")}
+        >
+          <section
+            className="panel sport-event-rules-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sport-event-rules-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="assignment-header">
+              <div>
+                <span className="eyebrow">Game rules</span>
+                <h5 id="sport-event-rules-title">{viewingRulesSportEvent.name}</h5>
+                <p className="assignment-subtitle">
+                  {viewingRulesSportEvent.sportType} | {viewingRulesSportEvent.eventCategory} |{" "}
+                  {viewingRulesSportEvent.playersPerSide} per side
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ghost-button inline-button"
+                onClick={() => setViewingRulesSportEventId("")}
+              >
+                Close
+              </button>
+            </div>
+            <div className="sport-event-rules-modal-body">
+              <p className="sport-event-rules-copy">
+                {viewingRulesSportEvent.rules?.trim() || "No rules added for this event yet."}
+              </p>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       <section className="panel">

@@ -4,8 +4,11 @@ import SectionTitle from "../../components/SectionTitle";
 const EMPTY_FIXTURE_FORM = {
   sportEventId: "",
   label: "",
+  fixtureDate: "",
+  fixtureTime: "",
   venue: "TBD",
   status: "draft",
+  winnerTeamId: "",
   notes: "",
   sideAEntryId: "",
   sideBEntryId: "",
@@ -35,6 +38,25 @@ function getEntryOptionLabel(entry, playersById, teamsById) {
   return `${teamName}: ${playerNames || "Players not found"}`;
 }
 
+function formatFixtureSchedule(fixture) {
+  const parts = [];
+
+  if (fixture.fixtureDate) {
+    parts.push(new Date(`${fixture.fixtureDate}T00:00:00`).toLocaleDateString());
+  }
+
+  if (fixture.fixtureTime) {
+    parts.push(
+      new Date(`1970-01-01T${fixture.fixtureTime}`).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    );
+  }
+
+  return parts.join(" | ");
+}
+
 function GeneratedOpponentCard({
   fixture,
   sportEvent,
@@ -42,6 +64,7 @@ function GeneratedOpponentCard({
   leftPlayers,
   rightTeam,
   rightPlayers,
+  winnerTeam,
   leftFallbackLabel,
   rightFallbackLabel,
   canManage,
@@ -61,9 +84,11 @@ function GeneratedOpponentCard({
           {rightTeam?.name ?? rightFallbackLabel ?? "Team B"}:{" "}
           {rightPlayers.length > 0 ? getPlayerSummary(rightPlayers) : rightFallbackLabel ?? "TBD"}
         </p>
+        {formatFixtureSchedule(fixture) ? <p>{formatFixtureSchedule(fixture)}</p> : null}
         <p>
           {fixture.venue || "TBD"} | {formatStatusLabel(fixture.status)}
         </p>
+        {winnerTeam ? <p>Winner: {winnerTeam.name}</p> : null}
       </div>
       <div className="table-actions">
         <span>{leftTeam?.id === rightTeam?.id ? "Same team fallback" : "Cross team"}</span>
@@ -155,6 +180,24 @@ export default function FixturesView({
   const availableEntries = database.sportEventEntries
     .filter((entry) => entry.sportEventId === fixtureForm.sportEventId)
     .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+  const selectedSideAEntry =
+    availableEntries.find((entry) => entry.id === fixtureForm.sideAEntryId) ?? null;
+  const selectedSideBEntry =
+    availableEntries.find((entry) => entry.id === fixtureForm.sideBEntryId) ?? null;
+  const winnerOptions = [
+    selectedSideAEntry
+      ? {
+          teamId: selectedSideAEntry.teamId,
+          label: `Entry A - ${teamsById.get(selectedSideAEntry.teamId)?.name ?? "Unknown team"}`,
+        }
+      : null,
+    selectedSideBEntry
+      ? {
+          teamId: selectedSideBEntry.teamId,
+          label: `Entry B - ${teamsById.get(selectedSideBEntry.teamId)?.name ?? "Unknown team"}`,
+        }
+      : null,
+  ].filter(Boolean);
 
   const visibleFixtures = database.eventFixtures
     .filter((fixture) => {
@@ -220,8 +263,11 @@ export default function FixturesView({
       const payload = {
         sportEventId: fixtureForm.sportEventId,
         label: fixtureForm.label.trim(),
+        fixtureDate: fixtureForm.fixtureDate || null,
+        fixtureTime: fixtureForm.fixtureTime || null,
         venue: fixtureForm.venue.trim(),
         status: fixtureForm.status,
+        winnerTeamId: fixtureForm.winnerTeamId || null,
         notes: fixtureForm.notes.trim(),
         sideAEntryId: fixtureForm.sideAEntryId,
         sideBEntryId: fixtureForm.sideBEntryId,
@@ -257,8 +303,11 @@ export default function FixturesView({
     setFixtureForm({
       sportEventId: fixture.sportEventId,
       label: fixture.label ?? "",
+      fixtureDate: fixture.fixtureDate ?? "",
+      fixtureTime: fixture.fixtureTime ?? "",
       venue: fixture.venue ?? "TBD",
       status: fixture.status ?? "draft",
+      winnerTeamId: fixture.winnerTeamId ?? "",
       notes: fixture.notes ?? "",
       sideAEntryId: findEntryIdForFixtureSide(
         matchingEntries,
@@ -358,6 +407,7 @@ export default function FixturesView({
                       ...current,
                       sportEventId,
                       venue: nextSportEvent?.venue || "TBD",
+                      winnerTeamId: "",
                       sideAEntryId: "",
                       sideBEntryId: "",
                     }));
@@ -377,12 +427,25 @@ export default function FixturesView({
                   <span>Entry A</span>
                   <select
                     value={fixtureForm.sideAEntryId}
-                    onChange={(event) =>
-                      setFixtureForm((current) => ({
-                        ...current,
-                        sideAEntryId: event.target.value,
-                      }))
-                    }
+                    onChange={(event) => {
+                      const sideAEntryId = event.target.value;
+                      const nextSideAEntry =
+                        availableEntries.find((entry) => entry.id === sideAEntryId) ?? null;
+                      setFixtureForm((current) => {
+                        const validWinnerTeamIds = [
+                          nextSideAEntry?.teamId ?? "",
+                          selectedSideBEntry?.teamId ?? "",
+                        ].filter(Boolean);
+
+                        return {
+                          ...current,
+                          sideAEntryId,
+                          winnerTeamId: validWinnerTeamIds.includes(current.winnerTeamId)
+                            ? current.winnerTeamId
+                            : "",
+                        };
+                      });
+                    }}
                     disabled={submitting}
                   >
                     <option value="">Select entry A</option>
@@ -399,12 +462,25 @@ export default function FixturesView({
                   <span>Entry B</span>
                   <select
                     value={fixtureForm.sideBEntryId}
-                    onChange={(event) =>
-                      setFixtureForm((current) => ({
-                        ...current,
-                        sideBEntryId: event.target.value,
-                      }))
-                    }
+                    onChange={(event) => {
+                      const sideBEntryId = event.target.value;
+                      const nextSideBEntry =
+                        availableEntries.find((entry) => entry.id === sideBEntryId) ?? null;
+                      setFixtureForm((current) => {
+                        const validWinnerTeamIds = [
+                          selectedSideAEntry?.teamId ?? "",
+                          nextSideBEntry?.teamId ?? "",
+                        ].filter(Boolean);
+
+                        return {
+                          ...current,
+                          sideBEntryId,
+                          winnerTeamId: validWinnerTeamIds.includes(current.winnerTeamId)
+                            ? current.winnerTeamId
+                            : "",
+                        };
+                      });
+                    }}
                     disabled={submitting}
                   >
                     <option value="">Select entry B</option>
@@ -432,6 +508,36 @@ export default function FixturesView({
                   disabled={submitting}
                 />
               </label>
+              <div className="split-fields">
+                <label>
+                  <span>Date</span>
+                  <input
+                    type="date"
+                    value={fixtureForm.fixtureDate}
+                    onChange={(event) =>
+                      setFixtureForm((current) => ({
+                        ...current,
+                        fixtureDate: event.target.value,
+                      }))
+                    }
+                    disabled={submitting}
+                  />
+                </label>
+                <label>
+                  <span>Time</span>
+                  <input
+                    type="time"
+                    value={fixtureForm.fixtureTime}
+                    onChange={(event) =>
+                      setFixtureForm((current) => ({
+                        ...current,
+                        fixtureTime: event.target.value,
+                      }))
+                    }
+                    disabled={submitting}
+                  />
+                </label>
+              </div>
               <div className="split-fields">
                 <label>
                   <span>Venue</span>
@@ -466,6 +572,26 @@ export default function FixturesView({
                   </select>
                 </label>
               </div>
+              <label>
+                <span>Winner</span>
+                <select
+                  value={fixtureForm.winnerTeamId}
+                  onChange={(event) =>
+                    setFixtureForm((current) => ({
+                      ...current,
+                      winnerTeamId: event.target.value,
+                    }))
+                  }
+                  disabled={submitting || winnerOptions.length === 0}
+                >
+                  <option value="">Select winner later</option>
+                  {winnerOptions.map((option) => (
+                    <option key={option.teamId} value={option.teamId}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label>
                 <span>Notes</span>
                 <textarea
@@ -537,6 +663,7 @@ export default function FixturesView({
                       leftPlayers={teamAPlayers}
                       rightTeam={teamsById.get(fixture.sideBTeamId)}
                       rightPlayers={teamBPlayers}
+                      winnerTeam={teamsById.get(fixture.winnerTeamId) ?? null}
                       leftFallbackLabel={getFixtureParticipantFallback(fixture, "A")}
                       rightFallbackLabel={getFixtureParticipantFallback(fixture, "B")}
                       canManage={canManageFixtures}
@@ -578,6 +705,7 @@ export default function FixturesView({
                   leftPlayers={teamAPlayers}
                   rightTeam={teamsById.get(fixture.sideBTeamId)}
                   rightPlayers={teamBPlayers}
+                  winnerTeam={teamsById.get(fixture.winnerTeamId) ?? null}
                   leftFallbackLabel={getFixtureParticipantFallback(fixture, "A")}
                   rightFallbackLabel={getFixtureParticipantFallback(fixture, "B")}
                   canManage={false}

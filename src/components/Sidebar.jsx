@@ -36,10 +36,10 @@ export default function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand-block">
-        <h1>Acqualina Onam 2026</h1>
+        <h1>Aqualina Onam 2026</h1>
         <p className="brand-copy">
-          Mobile-first team management with Supabase login, secure staff accounts,
-          and live game assignments.
+          Plan teams, players, fixtures, and festival events together in one
+          simple place.
         </p>
       </div>
 

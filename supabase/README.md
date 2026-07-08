@@ -6,28 +6,28 @@ This project is prepared so Vercel only deploys the React frontend while Supabas
 
 1. Open your Supabase project.
 2. Go to `SQL Editor`.
-3. For a brand new database, run [`schema.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\schema.sql).
-4. If you already applied the earlier version, also run [`20260706193000_expand_roles_and_game_flow.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260706193000_expand_roles_and_game_flow.sql) so `moderator`, `player`, game schedules, results, and game moderators are added.
-5. Then run [`20260706195500_player_management.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260706195500_player_management.sql) so admins can edit/delete any player and captains can edit/delete only their own team players.
-6. Then run [`20260706203500_optional_game_date.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260706203500_optional_game_date.sql) if you want to create sports events before the exact date is decided.
-7. Then run [`20260707143000_multi_team_event_fixtures.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260707143000_multi_team_event_fixtures.sql) to add:
+3. For a brand new database, run [`schema.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\schema.sql).
+4. If you already applied the earlier version, also run [`20260706193000_expand_roles_and_game_flow.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260706193000_expand_roles_and_game_flow.sql) so `moderator`, `player`, game schedules, results, and game moderators are added.
+5. Then run [`20260706195500_player_management.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260706195500_player_management.sql) so admins can edit/delete any player and captains can edit/delete only their own team players.
+6. Then run [`20260706203500_optional_game_date.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260706203500_optional_game_date.sql) if you want to create sports events before the exact date is decided.
+7. Then run [`20260707143000_multi_team_event_fixtures.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260707143000_multi_team_event_fixtures.sql) to add:
    `sports_events` fields for sport type, venue, players per side, and status
    `sport_event_teams` for Side A / Side B team assignment
    `sport_event_players` for selected players inside each event team
    `fixtures` and `fixture_players` for generated event fixtures
-8. Then run [`20260707154500_add_sport_event_entries.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260707154500_add_sport_event_entries.sql) to add simple team registration entries such as singles or doubles pairs saved per sport event and team.
-9. Then run [`20260707203000_expand_fixtures_for_brackets.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260707203000_expand_fixtures_for_brackets.sql) so AI fixture generation can create a full bracket through the final, including future-round placeholder fixtures that point to winners of earlier fixtures.
-10. Then run [`20260707220000_add_event_category_and_master_categories.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260707220000_add_event_category_and_master_categories.sql) to:
+8. Then run [`20260707154500_add_sport_event_entries.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260707154500_add_sport_event_entries.sql) to add simple team registration entries such as singles or doubles pairs saved per sport event and team.
+9. Then run [`20260707203000_expand_fixtures_for_brackets.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260707203000_expand_fixtures_for_brackets.sql) so AI fixture generation can create a full bracket through the final, including future-round placeholder fixtures that point to winners of earlier fixtures.
+10. Then run [`20260707220000_add_event_category_and_master_categories.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260707220000_add_event_category_and_master_categories.sql) to:
    add `event_category` to `sports_events`
    normalize player categories to `Jr Girls`, `Jr Boys`, `Girls`, `Boys`, `Ladies`, and `Gents`
-11. Then run [`20260707223000_seed_aq_master_data.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260707223000_seed_aq_master_data.sql) to import the provided AQ master workbook data:
+11. Then run [`20260707223000_seed_aq_master_data.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260707223000_seed_aq_master_data.sql) to import the provided AQ master workbook data:
    85 players into the placeholder team `AQ Master Imported`
    59 sport events with sport type, event category, and players-per-side defaults
-12. Then run [`20260708000000_public_interest_registration.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\migrations\20260708000000_public_interest_registration.sql) to add:
+12. Then run [`20260708000000_public_interest_registration.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\migrations\20260708000000_public_interest_registration.sql) to add:
    public event-interest submission tables
    anonymous read access for the public registration page to players and sports events
    admin-only read access for saved submissions
-13. If you previously used the old demo-seeded setup, run [`remove-demo-data.sql`](C:\Users\akhil.m\Documents\Acqualina Onam 2026\supabase\remove-demo-data.sql) once to delete the sample teams, players, games, and broken demo auth users.
+13. If you previously used the old demo-seeded setup, run [`remove-demo-data.sql`](C:\Users\akhil.m\Documents\Aqualina Onam 2026\supabase\remove-demo-data.sql) once to delete the sample teams, players, games, and broken demo auth users.
 
 ## Deploy the edge function
 
