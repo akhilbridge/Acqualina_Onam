@@ -16,56 +16,71 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
 }
 
 function normalizeText(value: unknown) {
-  return String(value ?? "").trim();
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[‐‑‒–—―]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeCategoryKey(category: string) {
+  return normalizeText(category)
+    .toLowerCase()
+    .replace(/[./]/g, " ")
+    .replace(/\bto\b/g, " ")
+    .replace(/\byears?\b/g, " yrs ")
+    .replace(/\byr\b/g, " yrs ")
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeCategory(category: string) {
-  const normalized = normalizeText(category).toLowerCase();
+  const normalized = normalizeCategoryKey(category);
 
-  if (normalized === "mens" || normalized === "men" || normalized === "gents") {
+  if (
+    normalized === "gents" ||
+    normalized === "gent" ||
+    normalized === "mens" ||
+    normalized === "men"
+  ) {
     return "Gents";
   }
 
-  if (normalized === "ladies" || normalized === "women") {
+  if (normalized === "ladies" || normalized === "lady" || normalized === "women") {
     return "Ladies";
   }
 
   if (
     normalized === "jr boys" ||
-    normalized === "jr. boys" ||
     normalized === "jrboys" ||
-    normalized === "boys 6-9 yrs" ||
-    normalized === "boys 6 to 9 yrs" ||
-    normalized === "boys 6-9"
+    normalized === "boys 6 9" ||
+    normalized === "boys 6 9 yrs"
   ) {
     return "Boys 6-9 yrs";
   }
 
   if (
     normalized === "jr girls" ||
-    normalized === "jr. girls" ||
     normalized === "jrgirls" ||
-    normalized === "girls 6-9 yrs" ||
-    normalized === "girls 6 to 9 yrs" ||
-    normalized === "girls 6-9"
+    normalized === "girls 6 9" ||
+    normalized === "girls 6 9 yrs"
   ) {
     return "Girls 6-9 yrs";
   }
 
   if (
     normalized === "boys" ||
-    normalized === "boys 10-15 yrs" ||
-    normalized === "boys 10 to 15 yrs" ||
-    normalized === "boys 10-15"
+    normalized === "boys 10 15" ||
+    normalized === "boys 10 15 yrs"
   ) {
     return "Boys 10-15 yrs";
   }
 
   if (
     normalized === "girls" ||
-    normalized === "girls 10-15 yrs" ||
-    normalized === "girls 10 to 15 yrs" ||
-    normalized === "girls 10-15"
+    normalized === "girls 10 15" ||
+    normalized === "girls 10 15 yrs"
   ) {
     return "Girls 10-15 yrs";
   }
@@ -188,7 +203,7 @@ Deno.serve(async (request) => {
         return true;
       }
 
-      if (sportEvent.status === "completed") {
+      if (sportEvent.status !== "registration_open") {
         return true;
       }
 
@@ -196,6 +211,20 @@ Deno.serve(async (request) => {
     });
 
     if (invalidEvent) {
+      if (invalidEvent.is_active === false) {
+        return jsonResponse(
+          { error: `${invalidEvent.name} is no longer active for public registration.` },
+          400,
+        );
+      }
+
+      if (invalidEvent.status !== "registration_open") {
+        return jsonResponse(
+          { error: `${invalidEvent.name} is not open for registration right now.` },
+          400,
+        );
+      }
+
       return jsonResponse(
         { error: `${invalidEvent.name} is not eligible for the selected player.` },
         400,

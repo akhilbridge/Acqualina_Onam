@@ -9,30 +9,26 @@ export const PLAYER_CATEGORY_OPTIONS = [
 
 const PLAYER_CATEGORY_ALIASES = new Map([
   ["gents", "Gents"],
+  ["gent", "Gents"],
   ["mens", "Gents"],
   ["men", "Gents"],
   ["ladies", "Ladies"],
+  ["lady", "Ladies"],
   ["women", "Ladies"],
   ["jr boys", "Boys 6-9 yrs"],
-  ["jr. boys", "Boys 6-9 yrs"],
   ["jrboys", "Boys 6-9 yrs"],
-  ["boys 6-9 yrs", "Boys 6-9 yrs"],
-  ["boys 6 to 9 yrs", "Boys 6-9 yrs"],
-  ["boys 6-9", "Boys 6-9 yrs"],
+  ["boys 6 9", "Boys 6-9 yrs"],
+  ["boys 6 9 yrs", "Boys 6-9 yrs"],
   ["jr girls", "Girls 6-9 yrs"],
-  ["jr. girls", "Girls 6-9 yrs"],
   ["jrgirls", "Girls 6-9 yrs"],
-  ["girls 6-9 yrs", "Girls 6-9 yrs"],
-  ["girls 6 to 9 yrs", "Girls 6-9 yrs"],
-  ["girls 6-9", "Girls 6-9 yrs"],
+  ["girls 6 9", "Girls 6-9 yrs"],
+  ["girls 6 9 yrs", "Girls 6-9 yrs"],
   ["boys", "Boys 10-15 yrs"],
-  ["boys 10-15 yrs", "Boys 10-15 yrs"],
-  ["boys 10 to 15 yrs", "Boys 10-15 yrs"],
-  ["boys 10-15", "Boys 10-15 yrs"],
+  ["boys 10 15", "Boys 10-15 yrs"],
+  ["boys 10 15 yrs", "Boys 10-15 yrs"],
   ["girls", "Girls 10-15 yrs"],
-  ["girls 10-15 yrs", "Girls 10-15 yrs"],
-  ["girls 10 to 15 yrs", "Girls 10-15 yrs"],
-  ["girls 10-15", "Girls 10-15 yrs"],
+  ["girls 10 15", "Girls 10-15 yrs"],
+  ["girls 10 15 yrs", "Girls 10-15 yrs"],
 ]);
 
 const EVENT_DEFINITIONS = [
@@ -60,13 +56,26 @@ const EVENT_DEFINITIONS = [
 
 function normalizeText(value) {
   return String(value ?? "")
-    .replace(/[–—]/g, "-")
+    .normalize("NFKD")
+    .replace(/[‐‑‒–—―]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeCategoryKey(category) {
+  return normalizeText(category)
+    .toLowerCase()
+    .replace(/[./]/g, " ")
+    .replace(/\bto\b/g, " ")
+    .replace(/\byears?\b/g, " yrs ")
+    .replace(/\byr\b/g, " yrs ")
+    .replace(/-/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 export function normalizePlayerCategory(category) {
-  const normalizedKey = normalizeText(category).toLowerCase();
+  const normalizedKey = normalizeCategoryKey(category);
   return PLAYER_CATEGORY_ALIASES.get(normalizedKey) ?? normalizeText(category);
 }
 

@@ -425,9 +425,32 @@ async function readSupabaseDatabase(client) {
   });
 }
 
-function mapEdgeFunctionError(functionError, data, functionName = "Edge Function") {
+async function mapEdgeFunctionError(functionError, data, functionName = "Edge Function") {
   if (data?.error) {
     return data.error;
+  }
+
+  const response = functionError?.context;
+
+  if (response && typeof response.clone === "function") {
+    try {
+      const responseText = await response.clone().text();
+
+      if (responseText) {
+        try {
+          const parsed = JSON.parse(responseText);
+          if (parsed?.error) {
+            return parsed.error;
+          }
+        } catch {
+          if (!responseText.trim().startsWith("<!DOCTYPE html")) {
+            return responseText;
+          }
+        }
+      }
+    } catch {
+      // Fall through to the generic message handling below.
+    }
   }
 
   const statusCode = functionError?.context?.status ?? functionError?.status ?? null;
@@ -599,7 +622,7 @@ export function usePublicInterestRegistration() {
         .from("sports_events")
         .select("id, name, sport_type, event_category, players_per_side, status, venue, is_active")
         .eq("is_active", true)
-        .neq("status", "completed")
+        .eq("status", "registration_open")
         .order("name"),
     ]);
 
@@ -702,7 +725,9 @@ export function usePublicInterestRegistration() {
     );
 
     if (functionError || data?.error) {
-      throw new Error(mapEdgeFunctionError(functionError, data, "submit-public-interest"));
+      throw new Error(
+        await mapEdgeFunctionError(functionError, data, "submit-public-interest"),
+      );
     }
 
     return data;
@@ -1115,7 +1140,7 @@ export function useAppDatabase(userId) {
     );
 
     if (functionError || data?.error) {
-      throw new Error(mapEdgeFunctionError(functionError, data, "create-staff"));
+      throw new Error(await mapEdgeFunctionError(functionError, data, "create-staff"));
     }
 
     await refresh();

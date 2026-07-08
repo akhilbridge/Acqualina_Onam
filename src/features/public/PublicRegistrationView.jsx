@@ -83,47 +83,37 @@ export default function PublicRegistrationView() {
 
   const selectedPlayer = filteredPlayers.find((player) => player.id === playerId) ?? null;
 
-  const matchingSportsEvents = useMemo(() => {
+  const eligibleSportsEvents = useMemo(() => {
     if (!selectedPlayer) {
       return [];
     }
 
-    const normalizedSearch = deferredEventSearch.trim().toLowerCase();
-
     return sportsEvents
-      .filter((sportEvent) => isPlayerEligibleForEvent(selectedPlayer.category, sportEvent.eventCategory))
-      .filter((sportEvent) => {
-        if (!normalizedSearch) {
-          return true;
-        }
+      .filter((sportEvent) => sportEvent.isActive !== false)
+      .filter((sportEvent) => sportEvent.status === "registration_open")
+      .filter((sportEvent) =>
+        isPlayerEligibleForEvent(selectedPlayer.category, sportEvent.eventCategory),
+      );
+  }, [selectedPlayer, sportsEvents]);
 
-        const haystack = `${sportEvent.name} ${sportEvent.sportType} ${sportEvent.eventCategory}`.toLowerCase();
-        return haystack.includes(normalizedSearch);
-      });
-  }, [deferredEventSearch, selectedPlayer, sportsEvents]);
-
-  const filteredSportsEvents = useMemo(() => {
+  const visibleSportsEvents = useMemo(() => {
     const normalizedSearch = deferredEventSearch.trim().toLowerCase();
 
-    return sportsEvents.filter((sportEvent) => {
+    return eligibleSportsEvents.filter((sportEvent) => {
       if (!normalizedSearch) {
         return true;
       }
 
-      const haystack = `${sportEvent.name} ${sportEvent.sportType} ${sportEvent.eventCategory}`.toLowerCase();
+      const haystack =
+        `${sportEvent.name} ${sportEvent.sportType} ${sportEvent.eventCategory}`.toLowerCase();
       return haystack.includes(normalizedSearch);
     });
-  }, [deferredEventSearch, sportsEvents]);
+  }, [deferredEventSearch, eligibleSportsEvents]);
 
-  const eligibleSportsEvents =
-    selectedPlayer && matchingSportsEvents.length === 0
-      ? filteredSportsEvents
-      : matchingSportsEvents;
-
-  const isFallbackEventList =
-    Boolean(selectedPlayer) &&
-    matchingSportsEvents.length === 0 &&
-    filteredSportsEvents.length > 0;
+  const eligibleSportEventIds = useMemo(
+    () => new Set(eligibleSportsEvents.map((sportEvent) => sportEvent.id)),
+    [eligibleSportsEvents],
+  );
   const publicRegistrationLocked = appSettings.publicRegistrationLocked;
 
   const loadPreviousSelections = async (nextPlayer) => {
@@ -214,6 +204,16 @@ export default function PublicRegistrationView() {
     };
   }, [selectedPlayer]);
 
+  useEffect(() => {
+    setSelectedSportEventIds((current) => {
+      const nextSelection = current.filter((sportEventId) =>
+        eligibleSportEventIds.has(sportEventId),
+      );
+
+      return nextSelection.length === current.length ? current : nextSelection;
+    });
+  }, [eligibleSportEventIds]);
+
   const handleTeamChange = (nextTeamId) => {
     setTeamId(nextTeamId);
     setSelectedCategory("");
@@ -258,6 +258,16 @@ export default function PublicRegistrationView() {
       return;
     }
 
+    const validSportEventIds = selectedSportEventIds.filter((sportEventId) =>
+      eligibleSportEventIds.has(sportEventId),
+    );
+
+    if (validSportEventIds.length === 0) {
+      setSelectedSportEventIds([]);
+      setStatus("Choose at least one eligible sports event.");
+      return;
+    }
+
     if (publicRegistrationLocked) {
       setStatus("Sports event registration is currently locked.");
       return;
@@ -269,7 +279,7 @@ export default function PublicRegistrationView() {
       const response = await submitInterest({
         villaNumber: selectedPlayer.villaNumber,
         playerId,
-        sportEventIds: selectedSportEventIds,
+        sportEventIds: validSportEventIds,
       });
       await loadPreviousSelections(selectedPlayer);
       const nextSuccessMessage =
@@ -414,18 +424,13 @@ export default function PublicRegistrationView() {
 
               {selectedPlayer ? (
                 <div className="assignment-list public-interest-event-list">
-                  {isFallbackEventList ? (
-                    <p className="field-hint">
-                      No exact category match was found, so all available sports events are shown.
-                    </p>
-                  ) : null}
                   {previousSelectionsLoading ? (
                     <p className="field-hint">Loading previous selections...</p>
                   ) : null}
                   {previousSelectionsError ? (
                     <p className="error-note">{previousSelectionsError}</p>
                   ) : null}
-                  {eligibleSportsEvents.map((sportEvent) => {
+                  {visibleSportsEvents.map((sportEvent) => {
                     const selected = selectedSportEventIds.includes(sportEvent.id);
 
                     return (
@@ -448,11 +453,13 @@ export default function PublicRegistrationView() {
                       </label>
                     );
                   })}
-                  {eligibleSportsEvents.length === 0 ? (
+                  {visibleSportsEvents.length === 0 ? (
                     <p className="empty-note">
-                      {sportsEvents.length === 0
+                      {eligibleSportsEvents.length === 0
+                        ? "No eligible sports events are available for this player right now."
+                        : sportsEvents.length === 0
                         ? "No public sports events are available right now."
-                        : "No eligible sports events found for this player."}
+                        : "No eligible sports events match your search."}
                     </p>
                   ) : null}
                 </div>

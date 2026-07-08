@@ -2429,7 +2429,13 @@ td {
   }
 
   .section-title {
+    justify-content: flex-start;
     gap: 0.55rem;
+  }
+
+  .section-title > :first-child {
+    flex: initial;
+    width: 100%;
   }
 
   .section-title h3 {
