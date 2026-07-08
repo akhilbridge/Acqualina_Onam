@@ -733,24 +733,6 @@ button {
   justify-content: flex-start;
 }
 
-.public-interest-event-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.public-interest-event-meta span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.7rem;
-  padding: 0.22rem 0.58rem;
-  border-radius: 999px;
-  background: rgba(255, 244, 221, 0.9);
-  color: var(--green);
-  font-size: 0.76rem;
-  font-weight: 700;
-}
-
 .public-festival-stack {
   width: min(100%, 1120px);
 }
@@ -1659,26 +1641,23 @@ a.ghost-button,
 .public-interest-event-list {
   max-height: min(52vh, 500px);
   overflow-y: auto;
+  gap: 0.55rem;
 }
 
 .public-interest-event-list .assignment-row {
   grid-template-columns: auto 1fr;
-  gap: 0.55rem 0.9rem;
+  gap: 0.2rem 0.75rem;
   align-items: start;
-  padding: 0.95rem 1rem;
+  padding: 0.72rem 0.85rem;
   border-radius: 20px;
 }
 
 .public-interest-event-list .assignment-row input {
-  margin-top: 0.32rem;
+  margin-top: 0.18rem;
 }
 
 .public-interest-event-list .assignment-row span {
   line-height: 1.35;
-}
-
-.public-interest-event-list .assignment-row small {
-  margin-top: 0.2rem;
 }
 
 .sport-event-management-list {
@@ -1867,7 +1846,7 @@ a.ghost-button,
 .form-panel,
 .assignment-list {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.1rem;
 }
 
 .form-actions,
@@ -2595,8 +2574,8 @@ td {
   }
 
   .public-interest-event-list .assignment-row {
-    padding: 0.95rem 0.9rem;
-    gap: 0.45rem 0.78rem;
+    padding: 0.68rem 0.78rem;
+    gap: 0.14rem 0.62rem;
   }
 
   .public-interest-event-list .assignment-row input[type="checkbox"] {
@@ -2605,16 +2584,6 @@ td {
     min-height: 0;
     margin-top: 0.16rem;
     align-self: start;
-  }
-
-  .public-interest-event-list .assignment-row small {
-    gap: 0.36rem;
-  }
-
-  .public-interest-event-meta span {
-    min-height: 1.55rem;
-    padding: 0.18rem 0.48rem;
-    font-size: 0.72rem;
   }
 
   .public-registration-actions {

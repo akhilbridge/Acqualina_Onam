@@ -385,22 +385,6 @@ export default function PublicRegistrationView() {
               </label>
             </div>
 
-            {selectedTeam || selectedCategory || selectedPlayer ? (
-              <div className="public-registration-selection-strip" aria-label="Current selection">
-                {selectedTeam ? (
-                  <span className="public-selection-pill">{selectedTeam.name}</span>
-                ) : null}
-                {selectedCategory ? (
-                  <span className="public-selection-pill">{selectedCategory}</span>
-                ) : null}
-                {selectedPlayer ? (
-                  <span className="public-selection-pill">{selectedPlayer.name}</span>
-                ) : null}
-                {selectedPlayer?.villaNumber ? (
-                  <span className="public-selection-pill">Villa {selectedPlayer.villaNumber}</span>
-                ) : null}
-              </div>
-            ) : null}
 
             <label>
               <span>Search eligible events</span>
@@ -423,7 +407,7 @@ export default function PublicRegistrationView() {
               />
 
               {selectedPlayer ? (
-                <div className="assignment-list public-interest-event-list">
+                <div className="assignment-listassignment-list public-interest-event-list">
                   {previousSelectionsLoading ? (
                     <p className="field-hint">Loading previous selections...</p>
                   ) : null}
@@ -445,11 +429,6 @@ export default function PublicRegistrationView() {
                           disabled={submitting || publicRegistrationLocked}
                         />
                         <span>{sportEvent.name}</span>
-                        <small className="public-interest-event-meta">
-                          <span>{sportEvent.sportType}</span>
-                          <span>{sportEvent.eventCategory}</span>
-                          <span>{sportEvent.playersPerSide} per side</span>
-                        </small>
                       </label>
                     );
                   })}
