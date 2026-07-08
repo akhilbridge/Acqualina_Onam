@@ -56,7 +56,7 @@ export default function PlayersView({
   onUpdatePlayer,
   onDeletePlayer,
 }) {
-  const canManagePlayers = role === "admin" || role === "captain";
+  const canManagePlayers = role === "admin";
   const defaultTeamId = activeCaptain?.teamId ?? teams[0]?.id ?? "";
   const [form, setForm] = useState(() => createEmptyForm(defaultTeamId));
   const [editingPlayerId, setEditingPlayerId] = useState("");
@@ -99,7 +99,7 @@ export default function PlayersView({
       return;
     }
 
-    const targetTeamId = role === "captain" ? activeCaptain?.teamId : form.teamId;
+    const targetTeamId = form.teamId;
 
     if (!form.name.trim() || !form.villaNumber.trim() || !targetTeamId) {
       setStatus("Name, villa number, category, and team are required.");
@@ -149,7 +149,7 @@ export default function PlayersView({
 
   const handleCancelEdit = () => {
     setStatus("");
-    resetForm(role === "captain" ? activeCaptain?.teamId ?? "" : defaultTeamId);
+    resetForm(defaultTeamId);
   };
 
   const handleDelete = async (player) => {
@@ -168,7 +168,7 @@ export default function PlayersView({
     try {
       await onDeletePlayer(player.id);
       if (editingPlayerId === player.id) {
-        resetForm(role === "captain" ? activeCaptain?.teamId ?? "" : defaultTeamId);
+        resetForm(defaultTeamId);
       }
       setStatus("Player deleted successfully.");
     } catch (playerError) {
@@ -217,14 +217,8 @@ export default function PlayersView({
         {canManagePlayers ? (
           <form className="panel form-panel" onSubmit={handleSubmit}>
             <SectionTitle
-              title={
-                isEditing
-                  ? "Edit player details"
-                  : role === "admin"
-                    ? "Add player to any team"
-                    : "Add player to your team"
-              }
-              description="Captains can add, edit, and delete players only inside their assigned team."
+              title={isEditing ? "Edit player details" : "Add player to any team"}
+              description="Only admins can add, edit, and delete player records."
             />
             <label>
               <span>Player name</span>
@@ -273,11 +267,11 @@ export default function PlayersView({
             <label>
               <span>Team</span>
               <select
-                value={role === "captain" ? activeCaptain?.teamId ?? "" : form.teamId}
+                value={form.teamId}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, teamId: event.target.value }))
                 }
-                disabled={role === "captain" || submitting}
+                disabled={submitting}
               >
                 {teams.map((team) => (
                   <option key={team.id} value={team.id}>
@@ -306,8 +300,8 @@ export default function PlayersView({
         ) : (
           <section className="panel">
             <SectionTitle
-              title="Player management"
-              description="Only admins and team captains can create or update roster entries."
+              title="Player roster"
+              description="Only admins can add, edit, and delete roster entries."
             />
             <p className="muted">
               Your current role can view roster information but cannot change player

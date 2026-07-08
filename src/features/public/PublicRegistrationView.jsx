@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import AppCopyright from "../../components/AppCopyright";
 import SectionTitle from "../../components/SectionTitle";
 import { usePublicInterestRegistration } from "../../lib/database";
@@ -97,8 +97,18 @@ export default function PublicRegistrationView() {
   const [eventSearch, setEventSearch] = useState("");
   const [previousSelectionsLoading, setPreviousSelectionsLoading] = useState(false);
   const [previousSelectionsError, setPreviousSelectionsError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const successReloadTimeoutRef = useRef(null);
   const deferredEventSearch = useDeferredValue(eventSearch);
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
+
+  useEffect(() => {
+    return () => {
+      if (successReloadTimeoutRef.current) {
+        window.clearTimeout(successReloadTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const teamOptions = useMemo(() => {
     const activeTeamIds = new Set(players.map((player) => player.teamId).filter(Boolean));
@@ -322,9 +332,16 @@ export default function PublicRegistrationView() {
         sportEventIds: selectedSportEventIds,
       });
       await loadPreviousSelections(selectedPlayer);
-      setStatus(
-        `Interest ${response.action === "updated" ? "updated" : "saved"} for ${response.playerName}. ${response.selectedEventCount} event${response.selectedEventCount === 1 ? "" : "s"} submitted.`,
-      );
+      const nextSuccessMessage =
+        `Interest ${response.action === "updated" ? "updated" : "saved"} for ${response.playerName}. ` +
+        `${response.selectedEventCount} event${response.selectedEventCount === 1 ? "" : "s"} submitted successfully.`;
+      setSuccessMessage(nextSuccessMessage);
+      if (successReloadTimeoutRef.current) {
+        window.clearTimeout(successReloadTimeoutRef.current);
+      }
+      successReloadTimeoutRef.current = window.setTimeout(() => {
+        window.location.reload();
+      }, 1800);
     } catch (submissionError) {
       setStatus(submissionError.message ?? "Interest submission failed.");
     } finally {
@@ -531,6 +548,25 @@ export default function PublicRegistrationView() {
         </section>
         <AppCopyright />
       </div>
+      {successMessage ? (
+        <div className="modal-backdrop" aria-live="polite">
+          <section className="panel success-popup-modal">
+            <span className="eyebrow">Submission successful</span>
+            <h3>Thank you</h3>
+            <p>{successMessage}</p>
+            <p className="success-popup-hint">Reloading page...</p>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => window.location.reload()}
+              >
+                Reload now
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

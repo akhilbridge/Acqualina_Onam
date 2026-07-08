@@ -1604,16 +1604,18 @@ export default function GamesView({
               teamsById={teamsById}
               onDeleteEntry={handleDeleteRegistrationEntry}
             />
-            <div className="form-actions">
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handleGenerateFixtures}
-                disabled={!selectedEvent || generatorSubmitting || selectedEventEntries.length < 2}
-              >
-                {generatorSubmitting ? "Creating fixtures..." : "Create fixtures"}
-              </button>
-            </div>
+            {role === "admin" ? (
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={handleGenerateFixtures}
+                  disabled={!selectedEvent || generatorSubmitting || selectedEventEntries.length < 2}
+                >
+                  {generatorSubmitting ? "Creating fixtures..." : "Create fixtures"}
+                </button>
+              </div>
+            ) : null}
             {eventHasGeneratedFixtures ? (
               <p className="status-note">
                 Fixtures are already created for this event. Delete all saved entries to reset and create again.
